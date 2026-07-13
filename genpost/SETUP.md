@@ -82,61 +82,37 @@ Copy the output → `TOKEN_ENCRYPTION_KEY`.
 
 ---
 
-## 5. Stripe Setup (USD Billing)
+## 5. Paystack Setup (NGN & USD Billing)
 
 ### 5a. Create an Account
-Go to [stripe.com](https://stripe.com) → Sign up → complete verification.
-
-### 5b. Get API Keys
-Dashboard → Developers → API Keys:
-- **Secret key** → `STRIPE_SECRET_KEY`
-
-### 5c. Create Products & Prices
-Go to **Products → Add Product** and create 3 products:
-
-| Product | Price | Billing |
-|---|---|---|
-| Genpost Starter | $14.00 | Monthly recurring |
-| Genpost Growth | $35.00 | Monthly recurring |
-| Genpost Agency | $89.00 | Monthly recurring |
-
-Copy each **Price ID** (starts with `price_...`) to the corresponding env var.
-
-### 5d. Set Up Webhook
-1. Stripe Dashboard → Developers → Webhooks → Add endpoint.
-2. URL: `https://yourdomain.com/api/webhooks/stripe`
-3. Events to listen for:
-   - `customer.subscription.created`
-   - `customer.subscription.updated`
-   - `customer.subscription.deleted`
-   - `checkout.session.completed`
-4. Copy **Signing secret** → `STRIPE_WEBHOOK_SECRET`.
-
-> For local testing, use [Stripe CLI](https://stripe.com/docs/stripe-cli): `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
-
----
-
-## 6. Paystack Setup (NGN Billing)
-
-### 6a. Create an Account
 Go to [paystack.com](https://paystack.com) → Sign up → verify your business.
 
-### 6b. Get API Keys
+### 5b. Get API Keys
 Settings → API Keys & Webhooks:
 - **Secret Key** → `PAYSTACK_SECRET_KEY`
 
-### 6c. Create Plans
-Go to **Subscriptions → Plans → Create Plan**:
+### 5c. Create Plans
+Go to **Subscriptions → Plans → Create Plan**. Create plans in both currencies:
 
+#### Naira Plans (NGN)
 | Plan Name | Amount | Interval |
 |---|---|---|
 | Genpost Starter NGN | 5,500 | monthly |
 | Genpost Growth NGN | 11,000 | monthly |
 | Genpost Agency NGN | 27,500 | monthly |
 
-Copy each **Plan Code** (starts with `PLN_...`) to the env vars.
+Copy each Naira **Plan Code** (starts with `PLN_...`) to `PAYSTACK_STARTER_PLAN_CODE`, `PAYSTACK_GROWTH_PLAN_CODE`, and `PAYSTACK_AGENCY_PLAN_CODE`.
 
-### 6d. Set Up Webhook
+#### US Dollar Plans (USD)
+| Plan Name | Amount | Interval |
+|---|---|---|
+| Genpost Starter USD | 14.00 | monthly |
+| Genpost Growth USD | 35.00 | monthly |
+| Genpost Agency USD | 89.00 | monthly |
+
+Copy each US Dollar **Plan Code** (starts with `PLN_...`) to `PAYSTACK_STARTER_USD_PLAN_CODE`, `PAYSTACK_GROWTH_USD_PLAN_CODE`, and `PAYSTACK_AGENCY_USD_PLAN_CODE`.
+
+### 5d. Set Up Webhook
 Settings → API Keys & Webhooks → Webhook URL:
 `https://yourdomain.com/api/webhooks/paystack`
 
@@ -196,7 +172,7 @@ Open [http://localhost:3000](http://localhost:3000).
 4. Set `NEXT_PUBLIC_APP_URL` to your Vercel production URL.
 5. Deploy.
 
-> After deploying, update your X Developer App's **Callback URI** to your production URL, and update your Stripe/Paystack webhook URLs too.
+> After deploying, update your X Developer App's **Callback URI** to your production URL, and update your Paystack webhook URL too.
 
 ---
 

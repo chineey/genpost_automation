@@ -17,10 +17,6 @@ create table if not exists public.users (
   x_refresh_token           text,          -- AES-256-GCM encrypted
   token_expires_at          timestamptz,
 
-  -- Billing — Stripe
-  stripe_customer_id        text unique,
-  stripe_subscription_id    text,
-
   -- Billing — Paystack
   paystack_customer_code    text,
   paystack_subscription_code text,
@@ -64,9 +60,7 @@ create index if not exists idx_posts_scheduled
   on public.posts(status, scheduled_time)
   where status = 'approved';
 
-create index if not exists idx_users_stripe
-  on public.users(stripe_customer_id)
-  where stripe_customer_id is not null;
+
 
 create index if not exists idx_users_paystack
   on public.users(paystack_subscription_code)

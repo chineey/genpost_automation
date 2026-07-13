@@ -561,7 +561,7 @@ export default function LandingPage() {
                   <span style={{ opacity: 0.5 }}>📍</span>
                   {detectedRegion === "africa"
                     ? "Showing African pricing via Paystack — you can switch above"
-                    : "Showing global pricing via Stripe — you can switch above"}
+                    : "Showing global pricing via Paystack — you can switch above"}
                 </p>
               )}
             </div>

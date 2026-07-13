@@ -20,7 +20,6 @@ interface Profile {
   monthly_post_quota: number;
   posts_used_this_cycle: number;
   x_username: string | null;
-  stripe_customer_id: string | null;
   paystack_subscription_code: string | null;
 }
 
@@ -79,34 +78,23 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleStripeCheckout(planKey: string) {
+  async function handleCheckout(planKey: string) {
     setCheckoutLoading(planKey);
-    const res = await fetch("/api/billing/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planKey, currency: "usd" }),
-    });
-    const data = await res.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      setMessage({ type: "error", text: "Could not start checkout. Please try again." });
-      setCheckoutLoading(null);
-    }
-  }
-
-  async function handlePaystackCheckout(planKey: string) {
-    setCheckoutLoading(planKey);
-    const res = await fetch("/api/billing/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planKey, currency: "ngn" }),
-    });
-    const data = await res.json();
-    if (data.authorization_url) {
-      window.location.href = data.authorization_url;
-    } else {
-      setMessage({ type: "error", text: "Could not start checkout. Please try again." });
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planKey, currency }),
+      });
+      const data = await res.json();
+      if (data.authorization_url) {
+        window.location.href = data.authorization_url;
+      } else {
+        setMessage({ type: "error", text: data.error || "Could not start checkout. Please try again." });
+        setCheckoutLoading(null);
+      }
+    } catch {
+      setMessage({ type: "error", text: "Network error. Please try again." });
       setCheckoutLoading(null);
     }
   }
@@ -181,7 +169,7 @@ export default function SettingsPage() {
               <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>Upgrade Plan</h2>
               {!regionLoading && (
                 <p style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                  📍 {currency === "ngn" ? "Prices in NGN via Paystack" : "Prices in USD via Stripe"} — switch above to change
+                  📍 {currency === "ngn" ? "Prices in NGN via Paystack" : "Prices in USD via Paystack"} — switch above to change
                 </p>
               )}
             </div>
@@ -250,11 +238,7 @@ export default function SettingsPage() {
                     </span>
                   ) : (
                     <button
-                      onClick={() =>
-                        currency === "usd"
-                          ? handleStripeCheckout(plan.key)
-                          : handlePaystackCheckout(plan.key)
-                      }
+                      onClick={() => handleCheckout(plan.key)}
                       className="btn-primary"
                       disabled={!!checkoutLoading}
                       style={{ padding: "8px 18px", fontSize: "0.8rem" }}
@@ -267,11 +251,9 @@ export default function SettingsPage() {
             })}
           </div>
 
-          {currency === "ngn" && (
-            <p style={{ marginTop: 12, fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Payments processed by Paystack. Accepts Verve, Visa, Mastercard, bank transfer.
-            </p>
-          )}
+          <p style={{ marginTop: 12, fontSize: "0.75rem", color: "var(--text-muted)" }}>
+            Payments processed securely by Paystack.
+          </p>
         </div>
 
         {/* Danger zone */}
