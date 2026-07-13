@@ -132,7 +132,8 @@ export function buildXAuthUrl(userId: string, codeVerifier: string): string {
 // ─── Exchange code for tokens ─────────────────────────────────────────────────
 export async function exchangeXCode(
   code: string,
-  codeVerifier: string
+  codeVerifier: string,
+  redirectUri?: string
 ): Promise<TokenPair> {
   const response = await fetch("https://api.x.com/2/oauth2/token", {
     method: "POST",
@@ -145,7 +146,7 @@ export async function exchangeXCode(
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code,
-      redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/x/callback`,
+      redirect_uri: redirectUri || `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/x/callback`,
       code_verifier: codeVerifier,
     }),
   });

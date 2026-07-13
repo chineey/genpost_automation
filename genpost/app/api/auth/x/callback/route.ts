@@ -42,7 +42,12 @@ export async function GET(request: Request) {
     }
 
     // Exchange code for tokens
-    const tokens = await exchangeXCode(code, decodeURIComponent(codeVerifier));
+    const origin = new URL(request.url).origin;
+    const tokens = await exchangeXCode(
+      code,
+      decodeURIComponent(codeVerifier),
+      `${origin}/api/auth/x/callback`
+    );
 
     // Fetch X username
     const meRes = await fetch("https://api.x.com/2/users/me", {
