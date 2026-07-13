@@ -507,64 +507,7 @@ export default function LandingPage() {
               Start free. Scale as you grow. No hidden fees.
             </p>
 
-            {/* Currency toggle */}
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  background: regionLoading ? "var(--bg-elevated)" : "var(--bg-elevated)",
-                  borderRadius: 9999,
-                  padding: 4,
-                  border: "1px solid var(--bg-border)",
-                  gap: 4,
-                  opacity: regionLoading ? 0.5 : 1,
-                  transition: "opacity 0.3s ease",
-                }}
-              >
-                <button
-                  onClick={() => setCurrency("usd")}
-                  style={{
-                    padding: "8px 20px",
-                    borderRadius: 9999,
-                    border: "none",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: "0.85rem",
-                    background: currency === "usd" ? "linear-gradient(135deg, #FF6B2B, #FF8C5A)" : "transparent",
-                    color: currency === "usd" ? "white" : "var(--text-secondary)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  $ USD
-                </button>
-                <button
-                  onClick={() => setCurrency("ngn")}
-                  style={{
-                    padding: "8px 20px",
-                    borderRadius: 9999,
-                    border: "none",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: "0.85rem",
-                    background: currency === "ngn" ? "linear-gradient(135deg, #FF6B2B, #FF8C5A)" : "transparent",
-                    color: currency === "ngn" ? "white" : "var(--text-secondary)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  ₦ NGN
-                </button>
-              </div>
 
-              {/* Detected region hint */}
-              {!regionLoading && detectedRegion && (
-                <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5 }}>
-                  <span style={{ opacity: 0.5 }}>📍</span>
-                  {detectedRegion === "africa"
-                    ? "Showing African pricing via Paystack — you can switch above"
-                    : "Showing global pricing via Paystack — you can switch above"}
-                </p>
-              )}
-            </div>
           </div>
 
 

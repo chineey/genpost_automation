@@ -5,10 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Suspense } from "react";
 
-const PLAN_LABELS: Record<string, string> = {
+import { useEffect } from "react";
+import type { Currency } from "@/lib/geo";
+
+const PLAN_LABELS_USD: Record<string, string> = {
   starter: "Starter ($14/mo)",
   growth: "Growth ($35/mo)",
   agency: "Agency ($89/mo)",
+};
+
+const PLAN_LABELS_NGN: Record<string, string> = {
+  starter: "Starter (₦5,500/mo)",
+  growth: "Growth (₦11,000/mo)",
+  agency: "Agency (₦27,500/mo)",
 };
 
 function SignupForm() {
@@ -20,6 +29,18 @@ function SignupForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [currency, setCurrency] = useState<Currency>("usd");
+
+  useEffect(() => {
+    fetch("/api/detect-region")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.currency) setCurrency(data.currency);
+      })
+      .catch(() => {});
+  }, []);
+
+  const planLabels = currency === "ngn" ? PLAN_LABELS_NGN : PLAN_LABELS_USD;
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -95,7 +116,7 @@ function SignupForm() {
         <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
           {selectedPlan === "free"
             ? "Start with 10 free posts — no card required"
-            : `You selected: ${PLAN_LABELS[selectedPlan] ?? selectedPlan}`}
+            : `You selected: ${planLabels[selectedPlan] ?? selectedPlan}`}
         </p>
       </div>
 
