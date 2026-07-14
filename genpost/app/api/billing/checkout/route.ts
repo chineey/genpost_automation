@@ -15,6 +15,19 @@ const PAYSTACK_PLAN_CODES: Record<string, Record<string, string>> = {
   },
 };
 
+const PAYSTACK_PLAN_AMOUNTS: Record<string, Record<string, number>> = {
+  ngn: {
+    starter: 550000,   // ₦5,500
+    growth: 1100000,   // ₦11,000
+    agency: 2750000,   // ₦27,500
+  },
+  usd: {
+    starter: 1400,     // $14
+    growth: 3500,     // $35
+    agency: 8900,     // $89
+  },
+};
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -30,14 +43,16 @@ export async function POST(request: Request) {
 
     const selectedCurrency = currency === "ngn" ? "ngn" : "usd";
     const planCode = PAYSTACK_PLAN_CODES[selectedCurrency]?.[planKey];
+    const planAmount = PAYSTACK_PLAN_AMOUNTS[selectedCurrency]?.[planKey];
 
-    if (!planCode) {
-      console.error("Checkout Configuration Error: Plan code not found for", { selectedCurrency, planKey });
+    if (!planCode || !planAmount) {
+      console.error("Checkout Configuration Error: Plan code or amount not found for", { selectedCurrency, planKey });
       return NextResponse.json({ error: "Invalid plan or currency configuration. Please ensure environment variables are set." }, { status: 400 });
     }
 
     console.log("Paystack Initialize Request:", {
       email: userEmail,
+      amount: planAmount,
       plan: planCode,
       currency: selectedCurrency.toUpperCase(),
       callback_url: `${appUrl}/dashboard/settings?payment=success`,
@@ -51,6 +66,7 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         email: userEmail,
+        amount: planAmount,
         plan: planCode,
         currency: selectedCurrency.toUpperCase(),
         metadata: { user_id: userId, plan_key: planKey },
