@@ -169,7 +169,7 @@ export default function DashboardPage() {
             </span>
           </div>
           {profile.plan === "free" && (
-            <Link href="/#pricing" className="btn-primary" style={{ padding: "8px 18px", fontSize: "0.8rem" }}>
+            <Link href="/dashboard/settings" className="btn-primary" style={{ padding: "8px 18px", fontSize: "0.8rem" }}>
               ↑ Upgrade
             </Link>
           )}

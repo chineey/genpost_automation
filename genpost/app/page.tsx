@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import type { Currency } from "@/lib/geo";
 
 const FEATURES = [
@@ -153,6 +154,7 @@ const NGN_PLANS = [
 ];
 
 export default function LandingPage() {
+  const { data: session } = useSession();
   const [currency, setCurrency] = useState<Currency>("usd");
   const [detectedRegion, setDetectedRegion] = useState<string | null>(null);
   const [regionLoading, setRegionLoading] = useState(true);
@@ -221,12 +223,20 @@ export default function LandingPage() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Link href="/login" className="btn-ghost">
-              Sign In
-            </Link>
-            <Link href="/signup" className="btn-primary" style={{ padding: "9px 20px", fontSize: "0.85rem" }}>
-              Get Started Free
-            </Link>
+            {session ? (
+              <Link href="/dashboard" className="btn-primary" style={{ padding: "9px 20px", fontSize: "0.85rem" }}>
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="btn-ghost">
+                  Sign In
+                </Link>
+                <Link href="/signup" className="btn-primary" style={{ padding: "9px 20px", fontSize: "0.85rem" }}>
+                  Get Started Free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -583,7 +593,7 @@ export default function LandingPage() {
                 </ul>
 
                 <Link
-                  href={plan.href}
+                  href={session ? "/dashboard/settings" : plan.href}
                   className={plan.highlighted ? "btn-primary" : "btn-secondary"}
                   style={{ display: "flex", justifyContent: "center", width: "100%" }}
                 >

@@ -169,41 +169,9 @@ export default function SettingsPage() {
               <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>Upgrade Plan</h2>
               {!regionLoading && (
                 <p style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                  📍 {currency === "ngn" ? "Prices in NGN via Paystack" : "Prices in USD via Paystack"} — switch above to change
+                  📍 {currency === "ngn" ? "Prices in NGN via Paystack" : "Prices in USD via Paystack"}
                 </p>
               )}
-            </div>
-            <div
-              style={{
-                display: "inline-flex",
-                background: "var(--bg-elevated)",
-                borderRadius: 9999,
-                padding: 3,
-                border: "1px solid var(--bg-border)",
-                gap: 3,
-                opacity: regionLoading ? 0.5 : 1,
-                transition: "opacity 0.3s ease",
-              }}
-            >
-              {(["usd", "ngn"] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  style={{
-                    padding: "5px 14px",
-                    borderRadius: 9999,
-                    border: "none",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                    fontSize: "0.78rem",
-                    background: currency === c ? "linear-gradient(135deg, #FF6B2B, #FF8C5A)" : "transparent",
-                    color: currency === c ? "white" : "var(--text-secondary)",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  {c === "usd" ? "$ USD" : "₦ NGN"}
-                </button>
-              ))}
             </div>
           </div>
 
