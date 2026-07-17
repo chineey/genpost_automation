@@ -2,13 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type PostTopic = string; // user-defined
-export type PostType =
-  | "question"
-  | "engagement_bait"
-  | "information"
-  | "explanation"
-  | "news"
-  | "joke";
+export type PostType = string;
 
 export interface GeneratedPost {
   topic: string;
@@ -41,7 +35,7 @@ export const SUGGESTED_TOPICS = [
   "Food & Cooking",
 ];
 
-export const POST_TYPE_LABELS: Record<PostType, string> = {
+export const POST_TYPE_LABELS: Record<string, string> = {
   question: "Question",
   engagement_bait: "Hot Take",
   information: "Info / Tips",
@@ -50,7 +44,7 @@ export const POST_TYPE_LABELS: Record<PostType, string> = {
   joke: "Joke / Humor",
 };
 
-export const POST_TYPE_DESCRIPTIONS: Record<PostType, string> = {
+export const POST_TYPE_DESCRIPTIONS: Record<string, string> = {
   question: "Thought-provoking questions to spark replies",
   engagement_bait: "Hot takes, 'A vs B' choices, controversial opinions",
   information: "Tips, cheat sheets, productivity hacks",
@@ -74,7 +68,7 @@ export async function generatePosts({
   const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
   const topicsList = topics.join(", ");
-  const typesList = postTypes.map((t) => POST_TYPE_LABELS[t]).join(", ");
+  const typesList = postTypes.map((t) => POST_TYPE_LABELS[t] ?? t).join(", ");
 
   const prompt = `
 Generate exactly ${count} high-quality, engaging social media posts for X (formerly Twitter).
@@ -85,7 +79,7 @@ ${topicsList}
 
 Post types to include (distribute evenly across the ${count} posts):
 ${postTypes
-  .map((t) => `- ${POST_TYPE_LABELS[t]}: ${POST_TYPE_DESCRIPTIONS[t]}`)
+  .map((t) => `- ${POST_TYPE_LABELS[t] ?? t}: ${POST_TYPE_DESCRIPTIONS[t] ?? "Custom post type style specified by the user"}`)
   .join("\n")}
 
 ${additionalContext ? `Additional context about the user's brand/voice:\n${additionalContext}\n` : ""}
@@ -116,7 +110,6 @@ Return ONLY valid JSON with a "posts" array. Do not include markdown or code fen
                 topic: { type: Type.STRING },
                 type: {
                   type: Type.STRING,
-                  enum: ["question", "engagement_bait", "information", "explanation", "news", "joke"],
                 },
                 content: { type: Type.STRING },
                 character_count: { type: Type.NUMBER },

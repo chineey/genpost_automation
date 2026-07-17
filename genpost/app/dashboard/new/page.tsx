@@ -15,6 +15,8 @@ export default function NewPostPage() {
 
   // Post type state
   const [selectedTypes, setSelectedTypes] = useState<PostType[]>(["information", "engagement_bait"]);
+  const [customTypes, setCustomTypes] = useState<string[]>([]);
+  const [customTypeInput, setCustomTypeInput] = useState("");
 
   // Count + context
   const [count, setCount] = useState(10);
@@ -43,6 +45,20 @@ export default function NewPostPage() {
     setSelectedTypes((prev) =>
       prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     );
+  }
+
+  function addCustomType() {
+    const t = customTypeInput.trim();
+    if (t && !customTypes.includes(t) && !ALL_POST_TYPES.includes(t as any)) {
+      setCustomTypes((prev) => [...prev, t]);
+      setSelectedTypes((prev) => [...prev, t]);
+      setCustomTypeInput("");
+    }
+  }
+
+  function removeCustomType(t: string) {
+    setCustomTypes((prev) => prev.filter((item) => item !== t));
+    setSelectedTypes((prev) => prev.filter((item) => item !== t));
   }
 
   async function handleGenerate() {
@@ -232,6 +248,82 @@ export default function NewPostPage() {
                 </div>
               </label>
             ))}
+
+            {/* Custom Post Types */}
+            {customTypes.map((type) => (
+              <div
+                key={type}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 18px",
+                  borderRadius: 12,
+                  border: selectedTypes.includes(type)
+                    ? "1px solid rgba(255,107,43,0.4)"
+                    : "1px solid var(--bg-border)",
+                  background: selectedTypes.includes(type)
+                    ? "rgba(255,107,43,0.06)"
+                    : "var(--bg-elevated)",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 14,
+                    cursor: "pointer",
+                    flex: 1,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTypes.includes(type)}
+                    onChange={() => toggleType(type)}
+                    style={{ marginTop: 2, accentColor: "var(--brand-orange)", width: 16, height: 16, flexShrink: 0 }}
+                  />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: 2 }}>
+                      {type}
+                    </div>
+                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                      Custom post type
+                    </div>
+                  </div>
+                </label>
+                <button
+                  onClick={() => removeCustomType(type)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#F87171",
+                    cursor: "pointer",
+                    fontSize: "0.85rem",
+                    padding: "4px 8px",
+                  }}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+
+            {/* Custom post type input */}
+            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              <input
+                id="custom-type-input"
+                type="text"
+                className="input"
+                placeholder="Add a custom post type (e.g. Code snippet, Tutorial, Quote…)"
+                value={customTypeInput}
+                onChange={(e) => setCustomTypeInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addCustomType()}
+                style={{ flex: 1 }}
+              />
+              <button onClick={addCustomType} className="btn-secondary" style={{ flexShrink: 0 }}>
+                + Add
+              </button>
+            </div>
           </div>
         </div>
 
