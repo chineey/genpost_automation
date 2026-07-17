@@ -93,7 +93,7 @@ export default function NewPostPage() {
           justifyContent: "center",
           minHeight: "60vh",
           gap: 16,
-          padding: 40,
+          padding: "40px 16px",
         }}
       >
         <div style={{ fontSize: 56 }}>✨</div>
@@ -106,7 +106,7 @@ export default function NewPostPage() {
   }
 
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 760, margin: "0 auto" }}>
+    <div className="responsive-padding" style={{ maxWidth: 760, margin: "0 auto" }}>
       <div style={{ marginBottom: 32 }}>
         <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
           ✨ Generate Posts
@@ -119,7 +119,7 @@ export default function NewPostPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
 
         {/* ── Step 1: Topics ── */}
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card responsive-card">
           <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 6 }}>
             1. What topics should your posts cover?
           </h2>
@@ -188,7 +188,7 @@ export default function NewPostPage() {
         </div>
 
         {/* ── Step 2: Post types ── */}
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card responsive-card">
           <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 6 }}>
             2. What types of posts do you want?
           </h2>
@@ -236,7 +236,7 @@ export default function NewPostPage() {
         </div>
 
         {/* ── Step 3: Count ── */}
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card responsive-card">
           <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 18 }}>
             3. How many posts to generate?
           </h2>
@@ -255,7 +255,7 @@ export default function NewPostPage() {
         </div>
 
         {/* ── Step 4: Additional context (optional) ── */}
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card responsive-card">
           <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 6 }}>
             4. Any extra context? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(optional)</span>
           </h2>

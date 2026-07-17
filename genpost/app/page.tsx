@@ -229,11 +229,12 @@ export default function LandingPage() {
               </Link>
             ) : (
               <>
-                <Link href="/login" className="btn-ghost">
+                <Link href="/login" className="btn-ghost hide-mobile">
                   Sign In
                 </Link>
                 <Link href="/signup" className="btn-primary" style={{ padding: "9px 20px", fontSize: "0.85rem" }}>
-                  Get Started Free
+                  <span className="hide-mobile">Get Started Free</span>
+                  <span className="show-mobile">Get Started</span>
                 </Link>
               </>
             )}
@@ -345,11 +346,10 @@ export default function LandingPage() {
       <section style={{ padding: "0 0 100px" }}>
         <div className="container">
           <div
-            className="card animate-float"
+            className="card animate-float responsive-card"
             style={{
               maxWidth: 720,
               margin: "0 auto",
-              padding: 32,
               background: "var(--bg-card)",
               position: "relative",
             }}
@@ -395,7 +395,7 @@ export default function LandingPage() {
               style={{
                 background: "var(--bg-elevated)",
                 borderRadius: 12,
-                padding: "20px 24px",
+                padding: "16px 20px",
                 marginBottom: 20,
                 border: "1px solid var(--bg-border)",
                 fontSize: "1rem",
@@ -406,7 +406,7 @@ export default function LandingPage() {
               &ldquo;{DEMO_POSTS[demoIdx].content}&rdquo;
             </div>
 
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
               <div style={{ display: "flex", gap: 8 }}>
                 {DEMO_POSTS.map((_, i) => (
                   <button
@@ -424,7 +424,7 @@ export default function LandingPage() {
                   />
                 ))}
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <button className="btn-secondary" style={{ padding: "8px 16px", fontSize: "0.8rem" }}>
                   ✏️ Edit
                 </button>
@@ -456,15 +456,14 @@ export default function LandingPage() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
               gap: 20,
             }}
           >
             {FEATURES.map((f, i) => (
               <div
                 key={i}
-                className="card"
-                style={{ padding: 28 }}
+                className="card responsive-card"
               >
                 <div
                   style={{
@@ -531,9 +530,8 @@ export default function LandingPage() {
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className="card"
+                className="card responsive-card"
                 style={{
-                  padding: 28,
                   position: "relative",
                   ...(plan.highlighted
                     ? {
@@ -615,15 +613,7 @@ export default function LandingPage() {
       <section style={{ padding: "80px 0 120px" }}>
         <div className="container">
           <div
-            style={{
-              borderRadius: 24,
-              padding: "60px 40px",
-              background: "linear-gradient(135deg, rgba(255,107,43,0.15) 0%, rgba(255,170,0,0.1) 100%)",
-              border: "1px solid rgba(255,107,43,0.2)",
-              textAlign: "center",
-              position: "relative",
-              overflow: "hidden",
-            }}
+            className="cta-banner"
           >
             <div className="orb orb-orange" style={{ width: 400, height: 400, top: -100, left: "50%", transform: "translateX(-50%)" }} />
             <h2
@@ -645,8 +635,7 @@ export default function LandingPage() {
       {/* ── FOOTER ── */}
       <footer style={{ borderTop: "1px solid var(--bg-border)", padding: "40px 0 32px" }}>
         <div
-          className="container"
-          style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}
+          className="container footer-container"
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <div

@@ -117,7 +117,7 @@ function ConnectXContent() {
       )}
 
       {/* Connection card */}
-      <div className="card" style={{ padding: 32 }}>
+      <div className="card responsive-card">
         {xUsername ? (
           <>
             <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
@@ -150,7 +150,7 @@ function ConnectXContent() {
               Your access tokens are encrypted with AES-256-GCM.
             </p>
 
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button onClick={handleConnect} className="btn-secondary" style={{ padding: "10px 20px" }}>
                 🔄 Reconnect
               </button>
@@ -221,7 +221,7 @@ function ConnectXContent() {
 
 export default function ConnectXPage() {
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 700, margin: "0 auto" }}>
+    <div className="responsive-padding" style={{ maxWidth: 700, margin: "0 auto" }}>
       <div style={{ marginBottom: 32 }}>
         <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
           🔗 Connect X Account

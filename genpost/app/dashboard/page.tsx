@@ -110,9 +110,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 960, margin: "0 auto" }}>
+    <div className="responsive-padding" style={{ maxWidth: 960, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 32, flexWrap: "wrap", gap: 16 }}>
         <div>
           <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
             Your Posts
@@ -139,8 +139,8 @@ export default function DashboardPage() {
       {/* Quota bar */}
       {profile && (
         <div
-          className="card"
-          style={{ padding: "20px 24px", marginBottom: 28, display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}
+          className="card responsive-card"
+          style={{ marginBottom: 28, display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}
         >
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
@@ -225,11 +225,10 @@ export default function DashboardPage() {
           {filtered.map((post) => (
             <div
               key={post.id}
-              className="card"
-              style={{ padding: "20px 24px" }}
+              className="card responsive-card"
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
-                <div style={{ flex: 1 }}>
+              <div className="post-card-container">
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
                     <StatusBadge status={post.status} />
                     {post.metadata?.topic && (
@@ -243,11 +242,11 @@ export default function DashboardPage() {
                       </span>
                     )}
                   </div>
-                  <p style={{ fontSize: "0.9rem", lineHeight: 1.6, color: "var(--text-primary)", marginBottom: 10 }}>
+                  <p style={{ fontSize: "0.9rem", lineHeight: 1.6, color: "var(--text-primary)", marginBottom: 10, wordBreak: "break-word" }}>
                     {post.content}
                   </p>
                   {post.status === "draft" && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Schedule:</span>
                       <input
                         type="datetime-local"
@@ -281,7 +280,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Actions */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+                <div className="post-card-actions">
                   {post.status === "draft" && (
                     <button
                       onClick={() => updateStatus(post.id, "approved")}

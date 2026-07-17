@@ -104,14 +104,14 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: 40 }}>
+      <div style={{ padding: "40px 16px" }}>
         {[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12, marginBottom: 16 }} />)}
       </div>
     );
   }
 
   return (
-    <div style={{ padding: "32px 40px", maxWidth: 680, margin: "0 auto" }}>
+    <div className="responsive-padding" style={{ maxWidth: 680, margin: "0 auto" }}>
       <div style={{ marginBottom: 32 }}>
         <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
           ⚙️ Settings
@@ -134,26 +134,26 @@ export default function SettingsPage() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
         {/* Account info */}
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card responsive-card">
           <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 20 }}>Account</h2>
           <div className="form-group" style={{ marginBottom: 16 }}>
             <label className="label">Email</label>
             <input className="input" value={email} disabled style={{ opacity: 0.6, cursor: "not-allowed" }} />
           </div>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <div>
+            <div style={{ minWidth: 120 }}>
               <div className="label">Current Plan</div>
               <span className={`badge badge-${currentPlan}`} style={{ textTransform: "capitalize" }}>
                 {currentPlan}
               </span>
             </div>
-            <div>
+            <div style={{ minWidth: 120 }}>
               <div className="label">X Account</div>
-              <span style={{ fontSize: "0.875rem", color: profile?.x_username ? "#4ADE80" : "var(--text-muted)" }}>
+              <span style={{ fontSize: "0.875rem", color: profile?.x_username ? "#4ADE80" : "var(--text-muted)", wordBreak: "break-all" }}>
                 {profile?.x_username ? `@${profile.x_username}` : "Not connected"}
               </span>
             </div>
-            <div>
+            <div style={{ minWidth: 120 }}>
               <div className="label">Posts this cycle</div>
               <span style={{ fontSize: "0.875rem" }}>
                 {profile?.posts_used_this_cycle ?? 0} / {profile?.monthly_post_quota ?? 10}
@@ -163,7 +163,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Billing / Upgrade */}
-        <div className="card" style={{ padding: 28 }}>
+        <div className="card responsive-card">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
             <div>
               <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>Upgrade Plan</h2>
@@ -226,8 +226,8 @@ export default function SettingsPage() {
 
         {/* Danger zone */}
         <div
-          className="card"
-          style={{ padding: 28, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.03)" }}
+          className="card responsive-card"
+          style={{ border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.03)" }}
         >
           <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 8, color: "#F87171" }}>Danger Zone</h2>
           <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: 16 }}>
