@@ -1,4 +1,7 @@
-import { Pool } from "@neondatabase/serverless";
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
+
+neonConfig.webSocketConstructor = ws;
 
 // Create a single global pool instance for Neon serverless Postgres
 let pool: Pool;
