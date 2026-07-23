@@ -13,10 +13,14 @@ export async function DELETE() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Clear user's X tokens and username inside Neon
+    // Clear the live connection (tokens/username), but intentionally keep
+    // x_user_id — it permanently marks this X account as claimed by this
+    // user so it can't be reconnected to a different Genpost account to
+    // farm a fresh free-tier quota. Reconnecting the same X account later
+    // is unaffected since the claim already matches this user.
     await query(
-      `UPDATE public.users 
-       SET x_username = null, x_oauth_token = null, x_refresh_token = null, token_expires_at = null 
+      `UPDATE public.users
+       SET x_username = null, x_oauth_token = null, x_refresh_token = null, token_expires_at = null
        WHERE id = $1`,
       [userId]
     );

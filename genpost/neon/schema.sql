@@ -12,6 +12,7 @@ create table if not exists public.users (
   image                     text,
 
   -- X / Twitter connection
+  x_user_id                 text,          -- stable X account id (permanent, survives disconnect)
   x_username                text,
   x_oauth_token             text,          -- AES-256-GCM encrypted
   x_refresh_token           text,          -- AES-256-GCM encrypted
@@ -65,6 +66,18 @@ create index if not exists idx_posts_scheduled
 create index if not exists idx_users_paystack
   on public.users(paystack_subscription_code)
   where paystack_subscription_code is not null;
+
+-- ── Migration for already-provisioned databases ────────────────────
+-- (create table ... if not exists above won't add columns to an
+-- existing table, so add it explicitly here too)
+alter table public.users add column if not exists x_user_id text;
+
+-- One X account may only ever be linked to a single Genpost user.
+-- Partial index (rather than a plain unique constraint) so multiple
+-- users with no X account connected (null) don't collide.
+create unique index if not exists idx_users_x_user_id_unique
+  on public.users(x_user_id)
+  where x_user_id is not null;
 
 -- ── Auto-update updated_at Trigger / Function ─────────────────────
 create or replace function public.set_updated_at()

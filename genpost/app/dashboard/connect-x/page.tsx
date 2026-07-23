@@ -74,6 +74,7 @@ function ConnectXContent() {
     unauthorized: "Session mismatch. Please sign out and back in.",
     missing_verifier: "OAuth code verifier missing. Please try again.",
     callback_failed: "Connection failed. Please try again.",
+    x_already_linked: "This X account is already linked to another Genpost account. Each X account can only be connected to one Genpost account.",
   };
 
   if (loading) {

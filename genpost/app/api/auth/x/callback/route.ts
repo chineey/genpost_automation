@@ -49,21 +49,41 @@ export async function GET(request: Request) {
       `${origin}/api/auth/x/callback`
     );
 
-    // Fetch X username
+    // Fetch X account identity
     const meRes = await fetch("https://api.x.com/2/users/me", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     const meData = meRes.ok ? await meRes.json() : null;
+    const xUserId = meData?.data?.id ?? null;
     const xUsername = meData?.data?.username ?? null;
+
+    if (xUserId) {
+      // A given X account may only ever be linked to one Genpost user
+      // (even one that has since disconnected) — this is what stops
+      // someone from signing up repeatedly to farm free-tier quota.
+      const existing = await query(
+        "SELECT id FROM public.users WHERE x_user_id = $1 AND id != $2",
+        [xUserId, userId]
+      );
+      if (existing.length > 0) {
+        return NextResponse.redirect(`${appUrl}/dashboard/connect-x?error=x_already_linked`);
+      }
+    }
 
     // Store encrypted tokens
     await storeXTokens(userId, tokens);
 
-    if (xUsername) {
+    try {
       await query(
-        "UPDATE public.users SET x_username = $1 WHERE id = $2",
-        [xUsername, userId]
+        "UPDATE public.users SET x_username = $1, x_user_id = coalesce($2, x_user_id) WHERE id = $3",
+        [xUsername, xUserId, userId]
       );
+    } catch (err: unknown) {
+      // Race: another request claimed this x_user_id between our check and this write.
+      if (err && typeof err === "object" && "code" in err && err.code === "23505") {
+        return NextResponse.redirect(`${appUrl}/dashboard/connect-x?error=x_already_linked`);
+      }
+      throw err;
     }
 
     // Clear the verifier cookie and redirect to dashboard
