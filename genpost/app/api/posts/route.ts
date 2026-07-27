@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
+import { getAmnesiaApiKey, ingestPost } from "@/lib/amnesia";
 
 // GET /api/posts — Retrieve user's posts & user quota profile
 export async function GET() {
@@ -50,7 +51,7 @@ export async function PATCH(request: Request) {
     }
 
     // Ensure the post belongs to the logged-in user
-    const posts = await query("SELECT id FROM public.posts WHERE id = $1 AND user_id = $2", [id, userId]);
+    const posts = await query("SELECT id, content FROM public.posts WHERE id = $1 AND user_id = $2", [id, userId]);
     if (posts.length === 0) {
       return NextResponse.json({ error: "Post not found or unauthorized" }, { status: 404 });
     }
@@ -70,6 +71,14 @@ export async function PATCH(request: Request) {
         "UPDATE public.posts SET scheduled_time = $1 WHERE id = $2",
         [scheduled_time, id]
       );
+    }
+
+    // Approving a post is the user's signal that it sounds like them — best-effort
+    // teach Amnesia this content so future generations can draw on it. Never blocks
+    // or fails the status update if Amnesia is unreachable.
+    if (status === "approved") {
+      const apiKey = await getAmnesiaApiKey(userId);
+      if (apiKey) await ingestPost(apiKey, posts[0].content);
     }
 
     return NextResponse.json({ success: true });

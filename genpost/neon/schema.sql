@@ -22,6 +22,10 @@ create table if not exists public.users (
   paystack_customer_code    text,
   paystack_subscription_code text,
 
+  -- Amnesia (user-voice memory) connection
+  -- AES-256-GCM encrypted API key issued by the user's Amnesia account.
+  amnesia_api_key           text,
+
   -- Plan & quota
   plan                      text not null default 'free'
                               check (plan in ('free', 'starter', 'growth', 'agency')),
@@ -71,6 +75,7 @@ create index if not exists idx_users_paystack
 -- (create table ... if not exists above won't add columns to an
 -- existing table, so add it explicitly here too)
 alter table public.users add column if not exists x_user_id text;
+alter table public.users add column if not exists amnesia_api_key text;
 
 -- One X account may only ever be linked to a single Genpost user.
 -- Partial index (rather than a plain unique constraint) so multiple

@@ -1,4 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
+import type { WritingContext } from "./amnesia";
+import { formatMemoryPromptBlock } from "./amnesia";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type PostTopic = string; // user-defined
@@ -59,16 +61,19 @@ export async function generatePosts({
   postTypes,
   count,
   additionalContext,
+  memoryContext,
 }: {
   topics: string[];
   postTypes: PostType[];
   count: number;
   additionalContext?: string;
+  memoryContext?: WritingContext | null;
 }): Promise<GeneratedPost[]> {
   const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
   const topicsList = topics.join(", ");
   const typesList = postTypes.map((t) => POST_TYPE_LABELS[t] ?? t).join(", ");
+  const memoryBlock = memoryContext ? formatMemoryPromptBlock(memoryContext) : "";
 
   const prompt = `
 Generate exactly ${count} high-quality, engaging social media posts for X (formerly Twitter).
@@ -82,6 +87,7 @@ ${postTypes
   .map((t) => `- ${POST_TYPE_LABELS[t] ?? t}: ${POST_TYPE_DESCRIPTIONS[t] ?? "Custom post type style specified by the user"}`)
   .join("\n")}
 
+${memoryBlock ? `=== THIS USER'S VOICE (from memory) ===\n${memoryBlock}\nWrite in this person's actual voice above all else — it takes priority over generic "engaging" phrasing.\n` : ""}
 ${additionalContext ? `Additional context about the user's brand/voice:\n${additionalContext}\n` : ""}
 
 Format requirements:

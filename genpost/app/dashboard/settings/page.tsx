@@ -33,6 +33,15 @@ export default function SettingsPage() {
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // Amnesia (user-voice memory) connection
+  const [amnesiaConnected, setAmnesiaConnected] = useState(false);
+  const [amnesiaLoading, setAmnesiaLoading] = useState(true);
+  const [amnesiaKeyInput, setAmnesiaKeyInput] = useState("");
+  const [amnesiaConnecting, setAmnesiaConnecting] = useState(false);
+  const [amnesiaAbout, setAmnesiaAbout] = useState("");
+  const [amnesiaVoice, setAmnesiaVoice] = useState("");
+  const [amnesiaSavingVoice, setAmnesiaSavingVoice] = useState(false);
+
   const fetchData = useCallback(async () => {
     if (!session?.user) return;
     setEmail(session.user.email ?? "");
@@ -60,6 +69,71 @@ export default function SettingsPage() {
       .catch(() => {})
       .finally(() => setRegionLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetch("/api/amnesia/connect")
+      .then((r) => r.json())
+      .then((data) => setAmnesiaConnected(!!data.connected))
+      .catch(() => {})
+      .finally(() => setAmnesiaLoading(false));
+  }, []);
+
+  async function handleConnectAmnesia() {
+    if (!amnesiaKeyInput.trim()) return;
+    setAmnesiaConnecting(true);
+    try {
+      const res = await fetch("/api/amnesia/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: amnesiaKeyInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error ?? "Failed to connect Amnesia." });
+        return;
+      }
+      setAmnesiaConnected(true);
+      setAmnesiaKeyInput("");
+      setMessage({ type: "success", text: `Connected to Amnesia as ${data.email}. Your posts will now match your voice.` });
+    } catch {
+      setMessage({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setAmnesiaConnecting(false);
+    }
+  }
+
+  async function handleDisconnectAmnesia() {
+    if (!confirm("Disconnect Amnesia? Post generation will go back to generic AI voice.")) return;
+    try {
+      await fetch("/api/amnesia/connect", { method: "DELETE" });
+      setAmnesiaConnected(false);
+    } catch {
+      setMessage({ type: "error", text: "Failed to disconnect. Please try again." });
+    }
+  }
+
+  async function handleSaveVoiceNotes() {
+    setAmnesiaSavingVoice(true);
+    try {
+      const res = await fetch("/api/amnesia/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ about: amnesiaAbout, voice: amnesiaVoice }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error ?? "Failed to save." });
+        return;
+      }
+      setAmnesiaAbout("");
+      setAmnesiaVoice("");
+      setMessage({ type: "success", text: "Saved to your Amnesia memory profile." });
+    } catch {
+      setMessage({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setAmnesiaSavingVoice(false);
+    }
+  }
 
   async function handleDeleteAccount() {
     if (!confirm("Are you absolutely sure you want to permanently delete your account? This is irreversible.")) return;
@@ -160,6 +234,89 @@ export default function SettingsPage() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* Amnesia connection */}
+        <div className="card responsive-card">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
+            <div>
+              <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>🧠 Connect Amnesia</h2>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                Ground your posts in your real writing voice instead of generic AI phrasing.
+              </p>
+            </div>
+            {!amnesiaLoading && (
+              <span
+                style={{
+                  fontSize: "0.72rem",
+                  fontWeight: 600,
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  color: amnesiaConnected ? "#4ADE80" : "var(--text-muted)",
+                  background: amnesiaConnected ? "rgba(74,222,128,0.1)" : "var(--bg-elevated)",
+                  border: `1px solid ${amnesiaConnected ? "rgba(74,222,128,0.2)" : "var(--bg-border)"}`,
+                }}
+              >
+                {amnesiaConnected ? "Connected" : "Not connected"}
+              </span>
+            )}
+          </div>
+
+          {amnesiaLoading ? (
+            <div className="skeleton" style={{ height: 40, borderRadius: 10 }} />
+          ) : !amnesiaConnected ? (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                type="password"
+                className="input"
+                placeholder="Paste your Amnesia API key (ak_...)"
+                value={amnesiaKeyInput}
+                onChange={(e) => setAmnesiaKeyInput(e.target.value)}
+                style={{ flex: 1, minWidth: 220 }}
+              />
+              <button
+                onClick={handleConnectAmnesia}
+                className="btn-primary"
+                disabled={amnesiaConnecting || !amnesiaKeyInput.trim()}
+                style={{ flexShrink: 0 }}
+              >
+                {amnesiaConnecting ? <span className="spinner" /> : "Connect"}
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div className="form-group">
+                <label className="label">About you (age range, occupation, lifestyle)</label>
+                <textarea
+                  className="textarea"
+                  placeholder="E.g. '19-year-old university student, plays basketball'"
+                  value={amnesiaAbout}
+                  onChange={(e) => setAmnesiaAbout(e.target.value)}
+                  style={{ minHeight: 60 }}
+                />
+              </div>
+              <div className="form-group">
+                <label className="label">Voice &amp; tone (slang, language quirks)</label>
+                <textarea
+                  className="textarea"
+                  placeholder="E.g. 'Nigerian, uses pidgin sometimes, casual and hype tone'"
+                  value={amnesiaVoice}
+                  onChange={(e) => setAmnesiaVoice(e.target.value)}
+                  style={{ minHeight: 60 }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                <button
+                  onClick={handleSaveVoiceNotes}
+                  className="btn-secondary"
+                  disabled={amnesiaSavingVoice || (!amnesiaAbout.trim() && !amnesiaVoice.trim())}
+                >
+                  {amnesiaSavingVoice ? <span className="spinner" /> : "Save to memory"}
+                </button>
+                <button onClick={handleDisconnectAmnesia} className="btn-danger">Disconnect</button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Billing / Upgrade */}

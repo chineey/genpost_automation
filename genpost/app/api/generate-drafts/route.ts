@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { generatePosts, PostType } from "@/lib/gemini";
 import { query } from "@/lib/db";
+import { getAmnesiaApiKey, getWritingContext } from "@/lib/amnesia";
 
 export async function POST(request: Request) {
   try {
@@ -58,8 +59,15 @@ export async function POST(request: Request) {
       );
     }
 
+    // Pull the user's Amnesia memory context (voice/tone/past posts), if connected.
+    // Never blocks or fails generation — falls back to no memory context on any error.
+    const amnesiaApiKey = await getAmnesiaApiKey(userId);
+    const memoryContext = amnesiaApiKey
+      ? await getWritingContext(amnesiaApiKey, topics.join(", "))
+      : null;
+
     // Generate
-    const posts = await generatePosts({ topics, postTypes, count, additionalContext });
+    const posts = await generatePosts({ topics, postTypes, count, additionalContext, memoryContext });
 
     // Save to Neon DB as drafts using a multi-row parameterized insert statement
     const insertedPosts = [];
