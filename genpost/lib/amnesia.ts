@@ -79,7 +79,9 @@ export async function getWritingContext(apiKey: string, topicQuery: string): Pro
   }
 }
 
-// ─── Ingest: teach Amnesia a piece of text the user actually approved ───────
+// ─── Ingest: send a piece of text to Amnesia memory ──────────────────────────
+// NOTE: Automatic post ingestion is disabled. Amnesia memory ingestion from GenPost
+// is restricted to user-submitted Settings profile notes via pushProfileFacts.
 export async function ingestPost(apiKey: string, content: string): Promise<void> {
   try {
     await fetch(`${AMNESIA_API_URL}/api/memory/ingest`, {

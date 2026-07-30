@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { query } from "@/lib/db";
-import { getAmnesiaApiKey, ingestPost, removeAmnesiaApiKey, saveAmnesiaApiKey, verifyAmnesiaApiKey } from "@/lib/amnesia";
-
-// Cap on how many existing posts get backfilled into Amnesia when connecting,
-// so a long-time user doesn't trigger dozens of embedding calls at once.
-const BACKFILL_LIMIT = 30;
+import { getAmnesiaApiKey, removeAmnesiaApiKey, saveAmnesiaApiKey, verifyAmnesiaApiKey } from "@/lib/amnesia";
 
 // GET /api/amnesia/connect — connection status for the Settings page
 export async function GET() {
@@ -40,16 +35,7 @@ export async function POST(request: Request) {
 
   await saveAmnesiaApiKey(userId, apiKey.trim());
 
-  // Best-effort: backfill the user's existing posted/approved content so
-  // Amnesia has something to draw on immediately instead of starting cold.
-  const existingPosts = await query<{ content: string }>(
-    `SELECT content FROM public.posts WHERE user_id = $1 AND status IN ('approved', 'posted')
-     ORDER BY created_at DESC LIMIT $2`,
-    [userId, BACKFILL_LIMIT]
-  );
-  await Promise.all(existingPosts.map((p) => ingestPost(apiKey.trim(), p.content)));
-
-  return NextResponse.json({ success: true, email: amnesiaUser.email, backfilled: existingPosts.length });
+  return NextResponse.json({ success: true, email: amnesiaUser.email });
 }
 
 // DELETE /api/amnesia/connect — disconnect
