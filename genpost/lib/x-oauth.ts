@@ -88,7 +88,7 @@ export function buildXAuthUrl(userId: string, codeVerifier: string): string {
     response_type: "code",
     client_id: process.env.X_CLIENT_ID!,
     redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/x/callback`,
-    scope: "tweet.read tweet.write users.read offline.access",
+    scope: "tweet.read tweet.write users.read offline.access media.write",
     state: userId,
     code_challenge: codeChallenge,
     code_challenge_method: "plain",

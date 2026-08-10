@@ -47,7 +47,7 @@ function ConnectXContent() {
       response_type: "code",
       client_id: process.env.NEXT_PUBLIC_X_CLIENT_ID!,
       redirect_uri: `${window.location.origin}/api/auth/x/callback`,
-      scope: "tweet.read tweet.write users.read offline.access",
+      scope: "tweet.read tweet.write users.read offline.access media.write",
       state: userId,
       code_challenge: codeVerifier,
       code_challenge_method: "plain",

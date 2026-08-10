@@ -1,8 +1,17 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { UploadDropzone } from "@/lib/uploadthing";
 
 type PostStatus = "draft" | "approved" | "posted" | "failed";
+
+interface MediaItem {
+  id: string;
+  url: string;
+  file_key: string | null;
+  type: string;
+  size_bytes?: number;
+}
 
 interface Post {
   id: string;
@@ -14,6 +23,7 @@ interface Post {
   error_message: string | null;
   created_at: string;
   metadata?: { topic?: string; type?: string };
+  media?: MediaItem[];
 }
 
 interface Profile {
@@ -48,6 +58,11 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  // Edit Modal State
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch("/api/posts");
@@ -63,28 +78,44 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filtered = filter === "all" ? posts : posts.filter((p) => p.status === filter);
 
   async function updateStatus(postId: string, newStatus: PostStatus) {
     setUpdatingId(postId);
-    await fetch("/api/posts", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: postId, status: newStatus }),
-    });
-    await fetchData();
-    setUpdatingId(null);
+    try {
+      const res = await fetch("/api/posts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: postId, status: newStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to update status");
+      }
+    } catch (err) {
+      console.error("Failed to update status:", err);
+    } finally {
+      await fetchData();
+      setUpdatingId(null);
+    }
   }
 
   async function updateSchedule(postId: string, scheduledTime: string) {
-    await fetch("/api/posts", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: postId, scheduled_time: scheduledTime }),
-    });
-    await fetchData();
+    try {
+      await fetch("/api/posts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: postId, scheduled_time: scheduledTime }),
+      });
+    } catch (err) {
+      console.error("Failed to update schedule:", err);
+    } finally {
+      await fetchData();
+    }
   }
 
   async function deletePost(postId: string) {
@@ -93,6 +124,48 @@ export default function DashboardPage() {
       method: "DELETE",
     });
     await fetchData();
+  }
+
+  // Save edits from the Modal
+  async function handleSaveEdit() {
+    if (!editingPost) return;
+    setIsSavingEdit(true);
+    setEditError("");
+
+    try {
+      const mediaIds = editingPost.media?.map((m) => m.id) ?? [];
+      const res = await fetch("/api/posts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingPost.id,
+          content: editingPost.content,
+          scheduled_time: editingPost.scheduled_time,
+          media_ids: mediaIds,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to save changes");
+      }
+
+      setEditingPost(null);
+      await fetchData();
+    } catch (err: any) {
+      setEditError(err.message || "An error occurred");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
+
+  // Remove media locally in the edit staging list
+  function handleRemoveMediaLocal(mediaId: string) {
+    if (!editingPost) return;
+    setEditingPost({
+      ...editingPost,
+      media: editingPost.media?.filter((m) => m.id !== mediaId) ?? [],
+    });
   }
 
   const usedPercent = profile
@@ -245,6 +318,24 @@ export default function DashboardPage() {
                   <p style={{ fontSize: "0.9rem", lineHeight: 1.6, color: "var(--text-primary)", marginBottom: 10, wordBreak: "break-word" }}>
                     {post.content}
                   </p>
+
+                  {/* Media Grid list view */}
+                  {post.media && post.media.length > 0 && (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                      {post.media.map((m) => (
+                        <div key={m.id} style={{ position: "relative", width: 64, height: 64, borderRadius: 8, overflow: "hidden", border: "1px solid var(--bg-border)", background: "var(--bg-elevated)" }}>
+                          {m.type === "video" ? (
+                            <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>
+                              📹
+                            </div>
+                          ) : (
+                            <img src={m.url} alt="Attached media" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {post.status === "draft" && (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Schedule:</span>
@@ -281,6 +372,16 @@ export default function DashboardPage() {
 
                 {/* Actions */}
                 <div className="post-card-actions">
+                  {/* Edit post */}
+                  {post.status !== "posted" && (
+                    <button
+                      onClick={() => setEditingPost(post)}
+                      className="btn-secondary"
+                      style={{ padding: "7px 14px", fontSize: "0.78rem" }}
+                    >
+                      ✏️ Edit
+                    </button>
+                  )}
                   {post.status === "draft" && (
                     <button
                       onClick={() => updateStatus(post.id, "approved")}
@@ -320,6 +421,206 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Edit Modal (Glassmorphic Backdrop) */}
+      {editingPost && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(9, 9, 11, 0.8)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 16,
+          }}
+        >
+          <div
+            className="card glass"
+            style={{
+              width: "100%",
+              maxWidth: 580,
+              maxHeight: "90vh",
+              overflowY: "auto",
+              padding: 24,
+              display: "flex",
+              flexDirection: "column",
+              gap: 20,
+              boxShadow: "var(--glow-orange-sm)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 className="font-display" style={{ fontSize: "1.25rem", fontWeight: 700 }}>
+                ✏️ Edit Post
+              </h3>
+              <button
+                onClick={() => setEditingPost(null)}
+                style={{ background: "none", border: "none", color: "var(--text-secondary)", fontSize: 20, cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {editError && (
+              <div
+                style={{
+                  padding: "10px 14px",
+                  background: "rgba(239,68,68,0.1)",
+                  border: "1px solid rgba(239,68,68,0.2)",
+                  color: "#F87171",
+                  borderRadius: 8,
+                  fontSize: "0.8rem",
+                }}
+              >
+                {editError}
+              </div>
+            )}
+
+            {/* Post Content Input */}
+            <div className="form-group">
+              <label className="label">Caption</label>
+              <textarea
+                className="textarea"
+                value={editingPost.content}
+                onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
+                style={{ minHeight: 120, fontSize: "0.9rem" }}
+                placeholder="What's on your mind?"
+              />
+            </div>
+
+            {/* Scheduled Time Input (only editable if draft or approved) */}
+            <div className="form-group">
+              <label className="label">Scheduled Time</label>
+              <input
+                type="datetime-local"
+                className="input"
+                value={editingPost.scheduled_time?.slice(0, 16) ?? ""}
+                onChange={(e) =>
+                  setEditingPost({
+                    ...editingPost,
+                    scheduled_time: e.target.value ? new Date(e.target.value).toISOString() : null,
+                  })
+                }
+              />
+            </div>
+
+            {/* Attached Media Grid */}
+            <div className="form-group">
+              <label className="label" style={{ marginBottom: 8 }}>Attached Media</label>
+              
+              {editingPost.media && editingPost.media.length > 0 ? (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 12 }}>
+                  {editingPost.media.map((m) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        position: "relative",
+                        aspectRatio: "1",
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        border: "1px solid var(--bg-border)",
+                        background: "var(--bg-elevated)",
+                      }}
+                    >
+                      {m.type === "video" ? (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
+                          📹
+                        </div>
+                      ) : (
+                        <img src={m.url} alt="Thumbnail" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      )}
+                      
+                      {/* Delete Media Pin */}
+                      <button
+                        onClick={() => handleRemoveMediaLocal(m.id)}
+                        style={{
+                          position: "absolute",
+                          top: 4,
+                          right: 4,
+                          width: 20,
+                          height: 20,
+                          borderRadius: "50%",
+                          background: "rgba(239, 68, 68, 0.9)",
+                          border: "none",
+                          color: "#FFF",
+                          fontSize: 10,
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 1,
+                        }}
+                        title="Remove attachment"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: 12 }}>No media attached.</p>
+              )}
+
+              {/* Upload Uploader Component */}
+              <div style={{ border: "1px dashed var(--bg-border)", borderRadius: 12, overflow: "hidden" }}>
+                <UploadDropzone
+                  endpoint="mediaUploader"
+                  onClientUploadComplete={(res) => {
+                    if (res && res.length > 0) {
+                      const newMediaItems: MediaItem[] = res.map((file) => ({
+                        id: (file.serverData as any)?.mediaId,
+                        url: file.url,
+                        file_key: file.key,
+                        type: file.name.endsWith(".mp4") || file.name.endsWith(".mov") ? "video" : "image",
+                      }));
+                      
+                      setEditingPost({
+                        ...editingPost,
+                        media: [...(editingPost.media ?? []), ...newMediaItems],
+                      });
+                    }
+                  }}
+                  onUploadError={(error: Error) => {
+                    setEditError(`Upload error: ${error.message}`);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Modal Controls */}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 10 }}>
+              <button
+                onClick={() => setEditingPost(null)}
+                className="btn-secondary"
+                disabled={isSavingEdit}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                className="btn-primary"
+                disabled={isSavingEdit}
+              >
+                {isSavingEdit ? (
+                  <>
+                    <span className="spinner" style={{ width: 14, height: 14 }} />
+                    Saving…
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

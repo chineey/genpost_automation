@@ -49,6 +49,8 @@ create table if not exists public.posts (
   scheduled_time  timestamptz,
   x_post_id       text,           -- populated after successful publish
   error_message   text,
+  trigger_job_id  text,           -- Trigger.dev job ID, for rescheduling/canceling
+  platform        text not null default 'x', -- 'x' | 'facebook' | 'instagram'
 
   -- AI metadata
   metadata        jsonb default '{}'::jsonb,
@@ -118,3 +120,24 @@ begin
   where cycle_reset_at <= now();
 end;
 $$;
+
+-- ── Media Storage Tables ──────────────────────────────────────────
+create table if not exists public.media (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references public.users(id) on delete cascade,
+  url         text not null,          -- UploadThing public URL
+  file_key    text,                  -- UploadThing file key, needed for deletion
+  type        text not null,          -- 'image' | 'video' | 'gif'
+  width       int,
+  height      int,
+  size_bytes  int,
+  created_at  timestamptz default now()
+);
+
+create table if not exists public.post_media (
+  post_id     uuid references public.posts(id) on delete cascade,
+  media_id    uuid references public.media(id) on delete cascade,
+  position    int not null,
+  primary key (post_id, media_id)
+);
+
