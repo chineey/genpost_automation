@@ -109,6 +109,7 @@ export default function DashboardPage() {
   }
 
   async function updateSchedule(postId: string, scheduledTime: string) {
+    setUpdatingId(postId);
     try {
       await fetch("/api/posts", {
         method: "PATCH",
@@ -119,6 +120,7 @@ export default function DashboardPage() {
       console.error("Failed to update schedule:", err);
     } finally {
       await fetchData();
+      setUpdatingId(null);
     }
   }
 
@@ -349,7 +351,15 @@ export default function DashboardPage() {
                         className="input"
                         style={{ width: "auto", padding: "4px 10px", fontSize: "0.78rem" }}
                         defaultValue={post.scheduled_time?.slice(0, 16) ?? ""}
-                        onBlur={(e) => e.target.value && updateSchedule(post.id, new Date(e.target.value).toISOString())}
+                        onBlur={(e) => {
+                          if (e.target.value) {
+                            const newTime = new Date(e.target.value).toISOString();
+                            const oldTime = post.scheduled_time ? new Date(post.scheduled_time).toISOString() : null;
+                            if (newTime !== oldTime) {
+                              updateSchedule(post.id, newTime);
+                            }
+                          }
+                        }}
                       />
                     </div>
                   )}
@@ -391,7 +401,13 @@ export default function DashboardPage() {
                     <button
                       onClick={() => {
                         const inputEl = document.getElementById(`schedule-${post.id}`) as HTMLInputElement;
-                        const scheduledTime = inputEl?.value ? new Date(inputEl.value).toISOString() : null;
+                        let scheduledTime: string | null = null;
+                        if (inputEl?.value) {
+                          const d = new Date(inputEl.value);
+                          if (!isNaN(d.getTime())) {
+                            scheduledTime = d.toISOString();
+                          }
+                        }
                         updateStatus(post.id, "approved", scheduledTime);
                       }}
                       className="btn-primary"

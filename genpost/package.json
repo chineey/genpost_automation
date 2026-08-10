@@ -11,7 +11,7 @@
   "dependencies": {
     "@google/genai": "^1.0.1",
     "@neondatabase/serverless": "^1.1.0",
-    "@trigger.dev/sdk": "4.5.4",
+    "@trigger.dev/sdk": "4.5.10",
     "@uploadthing/react": "^7.3.3",
     "bcryptjs": "^3.0.3",
     "lucide-react": "^0.525.0",
