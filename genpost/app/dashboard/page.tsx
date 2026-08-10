@@ -84,13 +84,17 @@ export default function DashboardPage() {
 
   const filtered = filter === "all" ? posts : posts.filter((p) => p.status === filter);
 
-  async function updateStatus(postId: string, newStatus: PostStatus) {
+  async function updateStatus(postId: string, newStatus: PostStatus, scheduledTime?: string | null) {
     setUpdatingId(postId);
     try {
+      const payload: any = { id: postId, status: newStatus };
+      if (scheduledTime !== undefined) {
+        payload.scheduled_time = scheduledTime;
+      }
       const res = await fetch("/api/posts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: postId, status: newStatus }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = await res.json();
@@ -340,6 +344,7 @@ export default function DashboardPage() {
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Schedule:</span>
                       <input
+                        id={`schedule-${post.id}`}
                         type="datetime-local"
                         className="input"
                         style={{ width: "auto", padding: "4px 10px", fontSize: "0.78rem" }}
@@ -384,7 +389,11 @@ export default function DashboardPage() {
                   )}
                   {post.status === "draft" && (
                     <button
-                      onClick={() => updateStatus(post.id, "approved")}
+                      onClick={() => {
+                        const inputEl = document.getElementById(`schedule-${post.id}`) as HTMLInputElement;
+                        const scheduledTime = inputEl?.value ? new Date(inputEl.value).toISOString() : null;
+                        updateStatus(post.id, "approved", scheduledTime);
+                      }}
                       className="btn-primary"
                       disabled={updatingId === post.id}
                       style={{ padding: "7px 14px", fontSize: "0.78rem" }}
