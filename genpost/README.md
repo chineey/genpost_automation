@@ -1,36 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Genpost Application Directory
 
-## Getting Started
+This folder contains the core Next.js application codebase for Genpost.
 
-First, run the development server:
+Please refer to the following documents for comprehensive information:
+*   [**Main Project README**](../README.md): Tech stack details and quick start guide.
+*   [**How It Works (System Architecture & Under the Hood)**](../how_it_works.md): Detailed explanation of database schemas, token encryption, AI generation prompt structuring, chunked X media upload flow, and geo-routing. **Perfect for interviewers.**
+*   [**Setup Guide (SETUP.md)**](./SETUP.md): Step-by-step instructions for setting up Neon Postgres, NextAuth, Twitter Developer App, Token Encryption Key, Gemini API, Paystack Billing, Trigger.dev Background Worker, and local execution.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## ⚡ Quick Dev Commands
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Run these inside this directory (`genpost/`):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Start development server**:
+    ```bash
+    npm run dev
+    ```
+3.  **Start Trigger.dev dev server**:
+    ```bash
+    npx trigger.dev@latest dev
+    ```
+4.  **Deploy Trigger.dev tasks**:
+    ```bash
+    npx trigger.dev@latest deploy
+    ```

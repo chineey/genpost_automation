@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { query } from "@/lib/db";
-import { UTApi } from "uploadthing/server";
+import cloudinary from "@/lib/cloudinary";
 
 export async function GET() {
   try {
@@ -141,19 +141,24 @@ export async function PATCH(request: Request) {
       const removedMediaIds = currentMediaIds.filter(mid => !media_ids.includes(mid));
       
       if (removedMediaIds.length > 0) {
-        // Fetch file keys for these removed media to delete from UploadThing
+        // Fetch file keys for these removed media to delete from Cloudinary
         const mediaToDelete = await query(
-          "SELECT id, file_key FROM public.media WHERE id = ANY($1)",
+          "SELECT id, file_key, type FROM public.media WHERE id = ANY($1)",
           [removedMediaIds]
         );
         
-        const fileKeysToDelete = mediaToDelete.map(m => m.file_key).filter(Boolean);
-        if (fileKeysToDelete.length > 0) {
+        const validMediaToDelete = mediaToDelete.filter(m => m.file_key);
+        if (validMediaToDelete.length > 0) {
           try {
-            const utapi = new UTApi();
-            await utapi.deleteFiles(fileKeysToDelete);
-          } catch (utErr) {
-            console.error("Failed to delete orphaned files from UploadThing:", utErr);
+            await Promise.all(
+              validMediaToDelete.map(item =>
+                cloudinary.uploader.destroy(item.file_key, {
+                  resource_type: item.type === "video" ? "video" : "image"
+                })
+              )
+            );
+          } catch (cloudErr) {
+            console.error("Failed to delete orphaned files from Cloudinary:", cloudErr);
           }
         }
         
@@ -206,22 +211,27 @@ export async function DELETE(request: Request) {
 
     // 1. Find all media associated with this post
     const mediaRows = await query(
-      `SELECT m.id, m.file_key FROM public.media m
+      `SELECT m.id, m.file_key, m.type FROM public.media m
        JOIN public.post_media pm ON pm.media_id = m.id
        WHERE pm.post_id = $1`,
       [id]
     );
 
     const mediaIds = mediaRows.map(r => r.id);
-    const fileKeys = mediaRows.map(r => r.file_key).filter(Boolean);
+    const validMediaToDelete = mediaRows.filter(r => r.file_key);
 
-    // 2. Delete files from UploadThing
-    if (fileKeys.length > 0) {
+    // 2. Delete files from Cloudinary
+    if (validMediaToDelete.length > 0) {
       try {
-        const utapi = new UTApi();
-        await utapi.deleteFiles(fileKeys);
-      } catch (utErr) {
-        console.error("Failed to delete files from UploadThing during post deletion:", utErr);
+        await Promise.all(
+          validMediaToDelete.map(item =>
+            cloudinary.uploader.destroy(item.file_key, {
+              resource_type: item.type === "video" ? "video" : "image"
+            })
+          )
+        );
+      } catch (cloudErr) {
+        console.error("Failed to delete files from Cloudinary during post deletion:", cloudErr);
       }
     }
 

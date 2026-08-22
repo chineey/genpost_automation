@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { useUploadThing } from "@/lib/uploadthing";
 
 type PostStatus = "draft" | "approved" | "posted" | "failed";
 
@@ -185,32 +184,54 @@ function EditPostModal({ post, onClose, onSave }: EditPostModalProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { startUpload, isUploading } = useUploadThing("mediaUploader", {
-    onClientUploadComplete: (res) => {
-      if (res) {
-        const newItems: MediaItem[] = res.map((f, idx) => ({
-          id: (f.serverData as any)?.mediaId || f.key,
-          url: f.url,
-          fileKey: f.key,
-          type: (f.url.toLowerCase().endsWith(".mp4") || f.type?.startsWith("video")) ? "video" : "image",
-          position: attachedMedia.length + idx
-        }));
-        
-        setAttachedMedia(prev => {
-          const combined = [...prev, ...newItems];
-          const hasVideo = combined.some(m => m.type === "video");
-          if (hasVideo) {
-            const video = combined.find(m => m.type === "video")!;
-            return [video];
-          }
-          return combined.slice(0, 4);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const startUpload = async (files: File[]) => {
+    setIsUploading(true);
+    setErrorMessage(null);
+    try {
+      const uploadPromises = files.map(async (file) => {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const response = await fetch("/api/media/upload", {
+          method: "POST",
+          body: formData,
         });
-      }
-    },
-    onUploadError: (err) => {
+
+        if (!response.ok) {
+          const errData = await response.json();
+          throw new Error(errData.error || `Failed to upload ${file.name}`);
+        }
+
+        return response.json();
+      });
+
+      const results = await Promise.all(uploadPromises);
+
+      const newItems: MediaItem[] = results.map((f, idx) => ({
+        id: f.id,
+        url: f.url,
+        fileKey: f.fileKey,
+        type: f.type,
+        position: attachedMedia.length + idx
+      }));
+
+      setAttachedMedia(prev => {
+        const combined = [...prev, ...newItems];
+        const hasVideo = combined.some(m => m.type === "video");
+        if (hasVideo) {
+          const video = combined.find(m => m.type === "video")!;
+          return [video];
+        }
+        return combined.slice(0, 4);
+      });
+    } catch (err: any) {
       setErrorMessage(`Upload failed: ${err.message}`);
+    } finally {
+      setIsUploading(false);
     }
-  });
+  };
 
   const handleRemoveMedia = (id: string) => {
     setAttachedMedia(prev => prev.filter(m => m.id !== id));
