@@ -2,7 +2,7 @@ import { query } from "./db";
 import { encrypt, decrypt } from "./crypto";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const AMNESIA_API_URL = process.env.AMNESIA_API_URL || "https://amnesia-io.onrender.com";
+const AMNESIA_API_URL = process.env.AMNESIA_API_URL || "https://amnesia-k7quez-3dde07-169-58-208-39.sslip.io";
 
 // Amnesia's free-tier host can cold-start after inactivity, so retrieval gets
 // a generous timeout — but it must never block post generation for long if
@@ -51,9 +51,13 @@ export async function verifyAmnesiaApiKey(apiKey: string): Promise<{ id: string;
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: AbortSignal.timeout(8_000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`Amnesia API key verification failed: HTTP ${res.status} from ${AMNESIA_API_URL}`);
+      return null;
+    }
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.error(`Error verifying Amnesia API key against ${AMNESIA_API_URL}:`, err);
     return null;
   }
 }
@@ -84,15 +88,18 @@ export async function getWritingContext(apiKey: string, topicQuery: string): Pro
 // is restricted to user-submitted Settings profile notes via pushProfileFacts.
 export async function ingestPost(apiKey: string, content: string): Promise<void> {
   try {
-    await fetch(`${AMNESIA_API_URL}/api/memory/ingest`, {
+    const res = await fetch(`${AMNESIA_API_URL}/api/memory/ingest`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({ content }),
       signal: AbortSignal.timeout(INGEST_TIMEOUT_MS),
     });
+    if (!res.ok) {
+      console.warn(`Amnesia memory ingest failed: HTTP ${res.status} from ${AMNESIA_API_URL}`);
+    }
   } catch (err) {
     // Best-effort — never let a memory-ingestion hiccup fail the caller's request.
-    console.warn("Amnesia memory ingest failed:", err);
+    console.warn("Amnesia memory ingest errored:", err);
   }
 }
 
@@ -108,9 +115,13 @@ export async function pushProfileFacts(
       body: JSON.stringify(data),
       signal: AbortSignal.timeout(INGEST_TIMEOUT_MS),
     });
-    return res.ok;
+    if (!res.ok) {
+      console.warn(`Amnesia profile facts push failed: HTTP ${res.status} from ${AMNESIA_API_URL}`);
+      return false;
+    }
+    return true;
   } catch (err) {
-    console.warn("Amnesia profile facts push failed:", err);
+    console.warn("Amnesia profile facts push errored:", err);
     return false;
   }
 }
