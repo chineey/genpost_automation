@@ -13,6 +13,7 @@ const INGEST_TIMEOUT_MS = 8_000;
 export interface ProfileItem {
   content: string;
   confidence?: number;
+  category?: string;
 }
 
 export interface WritingContext {
@@ -21,6 +22,8 @@ export interface WritingContext {
     preferences: ProfileItem[];
     events: ProfileItem[];
   };
+  voice_traits?: string[];
+  topic_facts?: string[];
   episodic_snippets: string[];
 }
 
@@ -130,14 +133,35 @@ export async function pushProfileFacts(
 export function formatMemoryPromptBlock(context: WritingContext): string {
   const parts: string[] = [];
 
-  const { facts, preferences, events } = context.core_profile ?? {};
-  const traits = [...(facts ?? []), ...(preferences ?? []), ...(events ?? [])].map((f) => f.content);
-  if (traits.length > 0) {
-    parts.push(`Known traits about this specific person (match tone/voice/slang to these, don't just state them):\n${traits.map((t) => `- ${t}`).join("\n")}`);
+  const voiceTraits =
+    context.voice_traits ??
+    (context.core_profile?.preferences ?? []).map((p) => p.content);
+  const topicFacts =
+    context.topic_facts ??
+    [...(context.core_profile?.facts ?? []), ...(context.core_profile?.events ?? [])].map((f) => f.content);
+
+  if (voiceTraits.length > 0) {
+    parts.push(
+      `Writing style, tone & persona (use ONLY to shape voice/slang/cadence — do NOT force unrelated personal details into the post):\n${voiceTraits
+        .map((t) => `- ${t}`)
+        .join("\n")}`
+    );
+  }
+
+  if (topicFacts.length > 0) {
+    parts.push(
+      `Topic-relevant background & opinions for this subject:\n${topicFacts
+        .map((t) => `- ${t}`)
+        .join("\n")}`
+    );
   }
 
   if (context.episodic_snippets?.length > 0) {
-    parts.push(`Snippets of this person's own past posts/writing (mimic this exact voice, vocabulary, and rhythm):\n${context.episodic_snippets.map((s) => `- ${s}`).join("\n")}`);
+    parts.push(
+      `Topic-relevant past writing/snippets (match this voice, vocabulary, and rhythm):\n${context.episodic_snippets
+        .map((s) => `- ${s}`)
+        .join("\n")}`
+    );
   }
 
   return parts.join("\n\n");

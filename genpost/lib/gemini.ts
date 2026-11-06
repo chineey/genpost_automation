@@ -87,7 +87,7 @@ ${postTypes
   .map((t) => `- ${POST_TYPE_LABELS[t] ?? t}: ${POST_TYPE_DESCRIPTIONS[t] ?? "Custom post type style specified by the user"}`)
   .join("\n")}
 
-${memoryBlock ? `=== THIS USER'S VOICE (from memory) ===\n${memoryBlock}\nWrite in this person's actual voice above all else — it takes priority over generic "engaging" phrasing.\n` : ""}
+${memoryBlock ? `=== THIS USER'S VOICE & TOPIC MEMORY ===\n${memoryBlock}\nWrite in this person's actual voice above all else — it takes priority over generic "engaging" phrasing.\nCRITICAL GUARDRAIL: Stay strictly on the requested topic(s) (${topicsList}). Use the voice/persona traits ONLY for tone, slang, and rhythm — NEVER shoehorn unrelated personal facts, foods, drinks, or off-topic hobbies into a post.\n` : ""}
 ${additionalContext ? `Additional context about the user's brand/voice:\n${additionalContext}\n` : ""}
 
 Format requirements:

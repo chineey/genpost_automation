@@ -19,8 +19,8 @@ export async function POST(request: Request) {
   }
 
   const { about, voice } = await request.json();
-  const facts = about?.trim() ? [{ content: about.trim() }] : [];
-  const preferences = voice?.trim() ? [{ content: voice.trim() }] : [];
+  const facts = about?.trim() ? [{ content: about.trim(), category: "identity" }] : [];
+  const preferences = voice?.trim() ? [{ content: voice.trim(), category: "voice" }] : [];
 
   if (facts.length === 0 && preferences.length === 0) {
     return NextResponse.json({ error: "Nothing to save" }, { status: 400 });
