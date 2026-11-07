@@ -35,12 +35,35 @@ export default function SettingsPage() {
 
   // Amnesia (user-voice memory) connection
   const [amnesiaConnected, setAmnesiaConnected] = useState(false);
+  const [amnesiaEmail, setAmnesiaEmail] = useState<string | null>(null);
+  const [amnesiaKeyPrefix, setAmnesiaKeyPrefix] = useState<string | null>(null);
   const [amnesiaLoading, setAmnesiaLoading] = useState(true);
   const [amnesiaKeyInput, setAmnesiaKeyInput] = useState("");
   const [amnesiaConnecting, setAmnesiaConnecting] = useState(false);
   const [amnesiaAbout, setAmnesiaAbout] = useState("");
   const [amnesiaVoice, setAmnesiaVoice] = useState("");
   const [amnesiaSavingVoice, setAmnesiaSavingVoice] = useState(false);
+  const [amnesiaProfile, setAmnesiaProfile] = useState<{
+    facts: { content: string; category?: string }[];
+    preferences: { content: string; category?: string }[];
+  } | null>(null);
+
+  const fetchAmnesiaProfile = useCallback(async () => {
+    try {
+      const res = await fetch("/api/amnesia/profile");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.profile) {
+          setAmnesiaProfile({
+            facts: data.profile.facts ?? [],
+            preferences: data.profile.preferences ?? [],
+          });
+        }
+      }
+    } catch {
+      // Ignore profile fetch errors on initial load
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!session?.user) return;
@@ -73,10 +96,22 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/amnesia/connect")
       .then((r) => r.json())
-      .then((data) => setAmnesiaConnected(!!data.connected))
+      .then((data) => {
+        setAmnesiaConnected(!!data.connected);
+        setAmnesiaEmail(data.email ?? null);
+        setAmnesiaKeyPrefix(data.apiKeyPrefix ?? null);
+        if (data.reason === "invalid_key") {
+          setMessage({
+            type: "error",
+            text: "Your previously saved Amnesia API key was revoked or regenerated. Please paste your current Amnesia API key to reconnect.",
+          });
+        } else if (data.connected) {
+          fetchAmnesiaProfile();
+        }
+      })
       .catch(() => {})
       .finally(() => setAmnesiaLoading(false));
-  }, []);
+  }, [fetchAmnesiaProfile]);
 
   async function handleConnectAmnesia() {
     if (!amnesiaKeyInput.trim()) return;
@@ -93,8 +128,11 @@ export default function SettingsPage() {
         return;
       }
       setAmnesiaConnected(true);
+      setAmnesiaEmail(data.email ?? null);
+      setAmnesiaKeyPrefix(data.apiKeyPrefix ?? null);
       setAmnesiaKeyInput("");
       setMessage({ type: "success", text: `Connected to Amnesia as ${data.email}. Your posts will now match your voice.` });
+      fetchAmnesiaProfile();
     } catch {
       setMessage({ type: "error", text: "Network error. Please try again." });
     } finally {
@@ -107,6 +145,9 @@ export default function SettingsPage() {
     try {
       await fetch("/api/amnesia/connect", { method: "DELETE" });
       setAmnesiaConnected(false);
+      setAmnesiaEmail(null);
+      setAmnesiaKeyPrefix(null);
+      setAmnesiaProfile(null);
     } catch {
       setMessage({ type: "error", text: "Failed to disconnect. Please try again." });
     }
@@ -124,6 +165,12 @@ export default function SettingsPage() {
       if (!res.ok) {
         setMessage({ type: "error", text: data.error ?? "Failed to save." });
         return;
+      }
+      if (data.profile) {
+        setAmnesiaProfile({
+          facts: data.profile.facts ?? [],
+          preferences: data.profile.preferences ?? [],
+        });
       }
       setAmnesiaAbout("");
       setAmnesiaVoice("");
@@ -285,6 +332,56 @@ export default function SettingsPage() {
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {(amnesiaEmail || amnesiaKeyPrefix) && (
+                <div
+                  style={{
+                    fontSize: "0.78rem",
+                    color: "var(--text-secondary)",
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--bg-border)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 8,
+                  }}
+                >
+                  <span>
+                    Linked account: <strong style={{ color: "var(--text-primary)" }}>{amnesiaEmail ?? "Amnesia user"}</strong>
+                  </span>
+                  {amnesiaKeyPrefix && (
+                    <span style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>
+                      Key: ak_••••{amnesiaKeyPrefix}
+                    </span>
+                  )}
+                </div>
+              )}
+              {amnesiaProfile && (amnesiaProfile.facts.length > 0 || amnesiaProfile.preferences.length > 0) && (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background: "rgba(255,107,43,0.04)",
+                    border: "1px solid rgba(255,107,43,0.18)",
+                    fontSize: "0.78rem",
+                    color: "var(--text-secondary)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: "var(--brand-orange-light)", marginBottom: 2 }}>
+                    Active Memory Profile ({amnesiaProfile.facts.length + amnesiaProfile.preferences.length} item{amnesiaProfile.facts.length + amnesiaProfile.preferences.length === 1 ? "" : "s"})
+                  </div>
+                  {[...amnesiaProfile.facts, ...amnesiaProfile.preferences].slice(0, 6).map((item, idx) => (
+                    <div key={idx} style={{ color: "var(--text-muted)" }}>
+                      • {item.content}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="form-group">
                 <label className="label">About you (age range, occupation, lifestyle)</label>
                 <textarea

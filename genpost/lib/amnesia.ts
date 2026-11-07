@@ -6,11 +6,16 @@ const AMNESIA_API_URL = (
   process.env.AMNESIA_API_URL || "https://amnesia-io.onrender.com"
 ).replace(/\/+$/, "");
 
-// Amnesia's free-tier host (Render + Neon) can take 20-35s to cold-start after
-// inactivity, so key verification and profile pushes get a generous timeout.
+// Amnesia's free-tier host (Render + Neon) can take 20-35s+ to cold-start after
+// inactivity, so requests get a generous timeout and a retry for cold starts.
 const VERIFY_TIMEOUT_MS = 35_000;
-const CONTEXT_TIMEOUT_MS = 20_000;
-const INGEST_TIMEOUT_MS = 20_000;
+const CONTEXT_TIMEOUT_MS = 35_000;
+const INGEST_TIMEOUT_MS = 35_000;
+const RETRY_DELAY_MS = 2_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 export interface ProfileItem {
   content: string;
@@ -18,12 +23,14 @@ export interface ProfileItem {
   category?: string;
 }
 
+export interface CoreProfileData {
+  facts: ProfileItem[];
+  preferences: ProfileItem[];
+  events: ProfileItem[];
+}
+
 export interface WritingContext {
-  core_profile: {
-    facts: ProfileItem[];
-    preferences: ProfileItem[];
-    events: ProfileItem[];
-  };
+  core_profile: CoreProfileData;
   voice_traits?: string[];
   topic_facts?: string[];
   episodic_snippets: string[];
@@ -61,7 +68,7 @@ export async function getAmnesiaApiKey(userId: string): Promise<string | null> {
 
 // ─── Verify a key before saving it (also doubles as a "who is this" check) ──
 export type VerifyAmnesiaResult =
-  | { ok: true; user: { id: string; email: string } }
+  | { ok: true; user: { id: string; email: string; api_key_prefix?: string } }
   | { ok: false; reason: "invalid_key" | "unreachable"; status?: number };
 
 export async function verifyAmnesiaApiKey(apiKey: string): Promise<VerifyAmnesiaResult> {
@@ -77,40 +84,93 @@ export async function verifyAmnesiaApiKey(apiKey: string): Promise<VerifyAmnesia
       }
       if (!res.ok) {
         console.warn(`Amnesia API key verification HTTP ${res.status} from ${AMNESIA_API_URL} (attempt ${attempt})`);
-        if (attempt < 2) continue;
+        if (attempt < 2) {
+          await sleep(RETRY_DELAY_MS);
+          continue;
+        }
         return { ok: false, reason: "unreachable", status: res.status };
       }
       const user = await res.json();
       return { ok: true, user };
     } catch (err) {
       console.error(`Error verifying Amnesia API key against ${AMNESIA_API_URL} (attempt ${attempt}):`, err);
-      if (attempt === 2) {
-        return { ok: false, reason: "unreachable" };
+      if (attempt < 2) {
+        await sleep(RETRY_DELAY_MS);
+        continue;
       }
+      return { ok: false, reason: "unreachable" };
     }
   }
   return { ok: false, reason: "unreachable" };
 }
 
-// ─── Retrieval: core profile + relevant past-post snippets for a topic ─────
-export async function getWritingContext(apiKey: string, topicQuery: string): Promise<WritingContext | null> {
-  try {
-    const res = await fetch(
-      `${AMNESIA_API_URL}/api/context?${new URLSearchParams({ query: topicQuery, limit: "8" })}`,
-      {
+// ─── Fetch user's Core Profile from Amnesia ─────────────────────────────────
+export async function getAmnesiaProfile(apiKey: string): Promise<CoreProfileData | null> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(`${AMNESIA_API_URL}/api/profile`, {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: AbortSignal.timeout(CONTEXT_TIMEOUT_MS),
+      });
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        console.warn(`Amnesia profile fetch rejected: HTTP ${res.status}`);
+        return null;
       }
-    );
-    if (!res.ok) {
-      console.warn(`Amnesia context fetch failed: ${res.status}`);
+      if (!res.ok) {
+        console.warn(`Amnesia profile fetch failed: HTTP ${res.status} (attempt ${attempt})`);
+        if (attempt < 2) {
+          await sleep(RETRY_DELAY_MS);
+          continue;
+        }
+        return null;
+      }
+      return await res.json();
+    } catch (err) {
+      if (attempt < 2) {
+        console.warn(`Amnesia profile fetch timed out / errored (attempt ${attempt}), retrying...`);
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+      console.warn("Amnesia profile fetch errored:", err);
       return null;
     }
-    return await res.json();
-  } catch (err) {
-    console.warn("Amnesia context fetch errored, generating without memory context:", err);
-    return null;
   }
+  return null;
+}
+
+// ─── Retrieval: core profile + relevant past-post snippets for a topic ─────
+export async function getWritingContext(apiKey: string, topicQuery: string): Promise<WritingContext | null> {
+  const url = `${AMNESIA_API_URL}/api/context?${new URLSearchParams({ query: topicQuery, limit: "8" })}`;
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(CONTEXT_TIMEOUT_MS),
+      });
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        console.warn(`Amnesia context fetch rejected: HTTP ${res.status}`);
+        return null;
+      }
+      if (!res.ok) {
+        console.warn(`Amnesia context fetch failed: HTTP ${res.status} (attempt ${attempt})`);
+        if (attempt < 2) {
+          await sleep(RETRY_DELAY_MS);
+          continue;
+        }
+        return null;
+      }
+      return await res.json();
+    } catch (err) {
+      if (attempt < 2) {
+        console.warn(`Amnesia context fetch timed out / errored (attempt ${attempt}), retrying...`);
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+      console.warn("Amnesia context fetch errored, generating without memory context:", err);
+      return null;
+    }
+  }
+  return null;
 }
 
 // ─── Ingest: send a piece of text to Amnesia memory ──────────────────────────
@@ -137,23 +197,40 @@ export async function ingestPost(apiKey: string, content: string): Promise<void>
 export async function pushProfileFacts(
   apiKey: string,
   data: { facts?: ProfileItem[]; preferences?: ProfileItem[]; events?: ProfileItem[] }
-): Promise<boolean> {
-  try {
-    const res = await fetch(`${AMNESIA_API_URL}/api/profile/facts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify(data),
-      signal: AbortSignal.timeout(INGEST_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      console.warn(`Amnesia profile facts push failed: HTTP ${res.status} from ${AMNESIA_API_URL}`);
-      return false;
+): Promise<CoreProfileData | null> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(`${AMNESIA_API_URL}/api/profile/facts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify(data),
+        signal: AbortSignal.timeout(INGEST_TIMEOUT_MS),
+      });
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        console.warn(`Amnesia profile facts push rejected: HTTP ${res.status} from ${AMNESIA_API_URL}`);
+        return null;
+      }
+      if (!res.ok) {
+        console.warn(`Amnesia profile facts push failed: HTTP ${res.status} from ${AMNESIA_API_URL} (attempt ${attempt})`);
+        if (attempt < 2) {
+          await sleep(RETRY_DELAY_MS);
+          continue;
+        }
+        return null;
+      }
+      const body = await res.json();
+      return body.core_profile ?? { facts: [], preferences: [], events: [] };
+    } catch (err) {
+      if (attempt < 2) {
+        console.warn(`Amnesia profile facts push timed out / errored (attempt ${attempt}), retrying...`);
+        await sleep(RETRY_DELAY_MS);
+        continue;
+      }
+      console.warn("Amnesia profile facts push errored:", err);
+      return null;
     }
-    return true;
-  } catch (err) {
-    console.warn("Amnesia profile facts push errored:", err);
-    return false;
   }
+  return null;
 }
 
 // ─── Formats a WritingContext into a prompt block for lib/gemini.ts ─────────

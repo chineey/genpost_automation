@@ -12,7 +12,25 @@ export async function GET() {
   }
 
   const apiKey = await getAmnesiaApiKey(userId);
-  return NextResponse.json({ connected: !!apiKey });
+  if (!apiKey) {
+    return NextResponse.json({ connected: false });
+  }
+
+  const result = await verifyAmnesiaApiKey(apiKey);
+  if (!result.ok) {
+    if (result.reason === "invalid_key") {
+      await removeAmnesiaApiKey(userId);
+      return NextResponse.json({ connected: false, reason: "invalid_key" });
+    }
+    // Amnesia server may be cold-starting — keep key stored
+    return NextResponse.json({ connected: true, status: "unreachable" });
+  }
+
+  return NextResponse.json({
+    connected: true,
+    email: result.user.email,
+    apiKeyPrefix: result.user.api_key_prefix ?? null,
+  });
 }
 
 // POST /api/amnesia/connect — save + verify a pasted Amnesia API key
@@ -44,7 +62,11 @@ export async function POST(request: Request) {
 
   await saveAmnesiaApiKey(userId, apiKey.trim());
 
-  return NextResponse.json({ success: true, email: result.user.email });
+  return NextResponse.json({
+    success: true,
+    email: result.user.email,
+    apiKeyPrefix: result.user.api_key_prefix ?? null,
+  });
 }
 
 // DELETE /api/amnesia/connect — disconnect

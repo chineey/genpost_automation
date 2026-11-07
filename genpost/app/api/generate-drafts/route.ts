@@ -70,10 +70,16 @@ export async function POST(request: Request) {
     const posts = await generatePosts({ topics, postTypes, count, additionalContext, memoryContext });
 
     // Save to Neon DB as drafts using a multi-row parameterized insert statement
+    const amnesiaUsed = !!memoryContext;
     const insertedPosts = [];
     for (const p of posts) {
       const containsLink = p.content.includes("http");
-      const metadata = JSON.stringify({ topic: p.topic, type: p.type, character_count: p.character_count });
+      const metadata = JSON.stringify({
+        topic: p.topic,
+        type: p.type,
+        character_count: p.character_count,
+        amnesia_used: amnesiaUsed,
+      });
       
       const rows = await query(
         `INSERT INTO public.posts (user_id, content, contains_link, status, metadata)
@@ -84,7 +90,7 @@ export async function POST(request: Request) {
       if (rows[0]) insertedPosts.push(rows[0]);
     }
 
-    return NextResponse.json({ posts: insertedPosts, generated: posts.length });
+    return NextResponse.json({ posts: insertedPosts, generated: posts.length, amnesiaUsed });
   } catch (err: unknown) {
     console.error("Generate drafts error:", err);
     const message = err instanceof Error ? err.message : "Internal server error";

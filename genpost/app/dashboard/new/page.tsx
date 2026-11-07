@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SUGGESTED_TOPICS, POST_TYPE_LABELS, POST_TYPE_DESCRIPTIONS, PostType } from "@/lib/gemini";
 
 const ALL_POST_TYPES = Object.keys(POST_TYPE_LABELS) as PostType[];
@@ -26,6 +27,23 @@ export default function NewPostPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [generated, setGenerated] = useState(0);
+  const [amnesiaStatus, setAmnesiaStatus] = useState<{ loading: boolean; connected: boolean; email?: string | null }>({
+    loading: true,
+    connected: false,
+  });
+
+  useEffect(() => {
+    fetch("/api/amnesia/connect")
+      .then((r) => r.json())
+      .then((data) =>
+        setAmnesiaStatus({
+          loading: false,
+          connected: !!data.connected,
+          email: data.email ?? null,
+        })
+      )
+      .catch(() => setAmnesiaStatus({ loading: false, connected: false }));
+  }, []);
 
   function toggleTopic(topic: string) {
     setSelectedTopics((prev) =>
@@ -123,13 +141,34 @@ export default function NewPostPage() {
 
   return (
     <div className="responsive-padding" style={{ maxWidth: 760, margin: "0 auto" }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
-          ✨ Generate Posts
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-          Tell Genpost what to write about. Your drafts will appear on the dashboard for review.
-        </p>
+      <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
+            ✨ Generate Posts
+          </h1>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
+            Tell Genpost what to write about. Your drafts will appear on the dashboard for review.
+          </p>
+        </div>
+        {!amnesiaStatus.loading && (
+          <Link
+            href="/dashboard/settings"
+            style={{
+              fontSize: "0.75rem",
+              fontWeight: 600,
+              padding: "6px 12px",
+              borderRadius: 999,
+              textDecoration: "none",
+              color: amnesiaStatus.connected ? "#4ADE80" : "var(--text-muted)",
+              background: amnesiaStatus.connected ? "rgba(74,222,128,0.1)" : "var(--bg-elevated)",
+              border: `1px solid ${amnesiaStatus.connected ? "rgba(74,222,128,0.25)" : "var(--bg-border)"}`,
+            }}
+          >
+            {amnesiaStatus.connected
+              ? `🧠 Amnesia Active${amnesiaStatus.email ? ` (${amnesiaStatus.email})` : ""}`
+              : "🧠 Connect Amnesia in Settings →"}
+          </Link>
+        )}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
