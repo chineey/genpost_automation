@@ -2,13 +2,15 @@ import { query } from "./db";
 import { encrypt, decrypt } from "./crypto";
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const AMNESIA_API_URL = process.env.AMNESIA_API_URL || "https://amnesia-k7quez-3dde07-169-58-208-39.sslip.io";
+const AMNESIA_API_URL = (
+  process.env.AMNESIA_API_URL || "https://amnesia-io.onrender.com"
+).replace(/\/+$/, "");
 
-// Amnesia's free-tier host can cold-start after inactivity, so retrieval gets
-// a generous timeout — but it must never block post generation for long if
-// Amnesia is unreachable.
-const CONTEXT_TIMEOUT_MS = 12_000;
-const INGEST_TIMEOUT_MS = 8_000;
+// Amnesia's free-tier host (Render + Neon) can take 20-35s to cold-start after
+// inactivity, so key verification and profile pushes get a generous timeout.
+const VERIFY_TIMEOUT_MS = 35_000;
+const CONTEXT_TIMEOUT_MS = 20_000;
+const INGEST_TIMEOUT_MS = 20_000;
 
 export interface ProfileItem {
   content: string;
@@ -29,7 +31,17 @@ export interface WritingContext {
 
 // ─── Connection storage (per GenPost user) ───────────────────────────────────
 export async function saveAmnesiaApiKey(userId: string, apiKey: string) {
-  await query("UPDATE public.users SET amnesia_api_key = $1 WHERE id = $2", [encrypt(apiKey), userId]);
+  const encryptedKey = encrypt(apiKey);
+  try {
+    await query("UPDATE public.users SET amnesia_api_key = $1 WHERE id = $2", [encryptedKey, userId]);
+  } catch (err: any) {
+    if (String(err?.message || "").includes("amnesia_api_key")) {
+      await query("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS amnesia_api_key text");
+      await query("UPDATE public.users SET amnesia_api_key = $1 WHERE id = $2", [encryptedKey, userId]);
+    } else {
+      throw err;
+    }
+  }
 }
 
 export async function removeAmnesiaApiKey(userId: string) {
@@ -37,10 +49,10 @@ export async function removeAmnesiaApiKey(userId: string) {
 }
 
 export async function getAmnesiaApiKey(userId: string): Promise<string | null> {
-  const rows = await query("SELECT amnesia_api_key FROM public.users WHERE id = $1", [userId]);
-  const encrypted = rows[0]?.amnesia_api_key;
-  if (!encrypted) return null;
   try {
+    const rows = await query("SELECT amnesia_api_key FROM public.users WHERE id = $1", [userId]);
+    const encrypted = rows[0]?.amnesia_api_key;
+    if (!encrypted) return null;
     return decrypt(encrypted);
   } catch {
     return null;
@@ -48,21 +60,36 @@ export async function getAmnesiaApiKey(userId: string): Promise<string | null> {
 }
 
 // ─── Verify a key before saving it (also doubles as a "who is this" check) ──
-export async function verifyAmnesiaApiKey(apiKey: string): Promise<{ id: string; email: string } | null> {
-  try {
-    const res = await fetch(`${AMNESIA_API_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!res.ok) {
-      console.warn(`Amnesia API key verification failed: HTTP ${res.status} from ${AMNESIA_API_URL}`);
-      return null;
+export type VerifyAmnesiaResult =
+  | { ok: true; user: { id: string; email: string } }
+  | { ok: false; reason: "invalid_key" | "unreachable"; status?: number };
+
+export async function verifyAmnesiaApiKey(apiKey: string): Promise<VerifyAmnesiaResult> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(`${AMNESIA_API_URL}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS),
+      });
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        console.warn(`Amnesia API key rejected: HTTP ${res.status} from ${AMNESIA_API_URL}`);
+        return { ok: false, reason: "invalid_key", status: res.status };
+      }
+      if (!res.ok) {
+        console.warn(`Amnesia API key verification HTTP ${res.status} from ${AMNESIA_API_URL} (attempt ${attempt})`);
+        if (attempt < 2) continue;
+        return { ok: false, reason: "unreachable", status: res.status };
+      }
+      const user = await res.json();
+      return { ok: true, user };
+    } catch (err) {
+      console.error(`Error verifying Amnesia API key against ${AMNESIA_API_URL} (attempt ${attempt}):`, err);
+      if (attempt === 2) {
+        return { ok: false, reason: "unreachable" };
+      }
     }
-    return await res.json();
-  } catch (err) {
-    console.error(`Error verifying Amnesia API key against ${AMNESIA_API_URL}:`, err);
-    return null;
   }
+  return { ok: false, reason: "unreachable" };
 }
 
 // ─── Retrieval: core profile + relevant past-post snippets for a topic ─────
