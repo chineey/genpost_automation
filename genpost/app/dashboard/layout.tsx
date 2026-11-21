@@ -1,220 +1,52 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { useState } from "react";
+import { LayoutList, Sparkles, Link2, Settings, LogOut } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
-const NAV_ITEMS = [
-  { href: "/dashboard", icon: "🏠", label: "Dashboard" },
-  { href: "/dashboard/new", icon: "✨", label: "Generate Posts" },
-  { href: "/dashboard/connect-x", icon: "🔗", label: "Connect X" },
-  { href: "/dashboard/settings", icon: "⚙️", label: "Settings" },
+const NAV = [
+  { href: "/dashboard", label: "Posts", icon: LayoutList },
+  { href: "/dashboard/new", label: "Generate", icon: Sparkles },
+  { href: "/dashboard/connect-x", label: "Connect X", icon: Link2 },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  async function handleLogout() {
-    await signOut({ callbackUrl: "/login" });
-  }
 
   return (
-    <div className="dashboard-container">
-      {/* Mobile Top Navigation Header */}
-      <header className="mobile-nav-header glass" style={{ background: "var(--bg-surface)", width: "100%" }}>
-        <Link
-          href="/dashboard"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            textDecoration: "none",
-          }}
-          onClick={() => setIsMobileMenuOpen(false)}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              background: "linear-gradient(135deg, #FF6B2B, #FFAA00)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 14,
-              flexShrink: 0,
-            }}
-          >
-            ⚡
-          </div>
-          <span className="font-display" style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--text-primary)" }}>
-            Genpost
-          </span>
-        </Link>
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          style={{
-            background: "none",
-            border: "none",
-            color: "var(--text-primary)",
-            fontSize: 24,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            padding: 4,
-          }}
-          aria-label="Toggle navigation menu"
-        >
-          {isMobileMenuOpen ? "✕" : "☰"}
-        </button>
-      </header>
-
-      {/* Mobile Drawer Overlay Navigation */}
-      <nav className={`mobile-nav-drawer glass ${isMobileMenuOpen ? "open" : ""}`}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "12px 14px",
-                  borderRadius: 10,
-                  textDecoration: "none",
-                  fontSize: "0.95rem",
-                  fontWeight: 500,
-                  transition: "all 0.15s ease",
-                  background: isActive ? "rgba(255,107,43,0.12)" : "transparent",
-                  color: isActive ? "var(--brand-orange-light)" : "var(--text-secondary)",
-                  border: isActive ? "1px solid rgba(255,107,43,0.2)" : "1px solid transparent",
-                }}
-              >
-                <span style={{ fontSize: 18 }}>{item.icon}</span>
-                {item.label}
-              </Link>
-            );
-          })}
+    <div className="flex min-h-screen flex-col md:flex-row">
+      <aside className="flex shrink-0 flex-col gap-4 bg-sidebar p-4 text-sidebar-foreground md:sticky md:top-0 md:h-screen md:w-60 md:gap-6 md:p-5">
+        <div className="flex items-center justify-between">
+          <Logo invert href="/dashboard" />
+          <button onClick={() => signOut({ callbackUrl: "/login" })} className="flex items-center gap-2 text-sm hover:text-sidebar-accent-foreground md:hidden" aria-label="Log out">
+            <LogOut className="size-4" />
+          </button>
         </div>
-        <div className="divider" style={{ margin: "8px 0" }} />
-        <button
-          onClick={() => {
-            setIsMobileMenuOpen(false);
-            handleLogout();
-          }}
-          className="btn-ghost"
-          style={{ width: "100%", justifyContent: "flex-start", padding: "12px 14px" }}
-        >
-          <span style={{ fontSize: 18 }}>👋</span>
-          Sign Out
-        </button>
-      </nav>
-
-      {/* Desktop Sidebar (hidden on mobile) */}
-      <aside
-        className="glass hide-mobile"
-        style={{
-          width: 240,
-          flexShrink: 0,
-          display: "flex",
-          flexDirection: "column",
-          borderRight: "1px solid var(--bg-border)",
-          padding: "24px 16px",
-          position: "sticky",
-          top: 0,
-          height: "100vh",
-        }}
-      >
-        {/* Logo */}
-        <Link
-          href="/dashboard"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            textDecoration: "none",
-            marginBottom: 32,
-            padding: "0 8px",
-          }}
-        >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              background: "linear-gradient(135deg, #FF6B2B, #FFAA00)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 16,
-              flexShrink: 0,
-            }}
-          >
-            ⚡
-          </div>
-          <span className="font-display" style={{ fontWeight: 700, fontSize: "1rem", color: "var(--text-primary)" }}>
-            Genpost
-          </span>
-        </Link>
-
-        {/* Nav items */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-          {NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
+        <nav className="flex gap-1 overflow-x-auto md:flex-col">
+          {NAV.map(({ href, label, icon: Icon }) => {
+            const active = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
             return (
               <Link
-                key={item.href}
-                href={item.href}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  textDecoration: "none",
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                  transition: "all 0.15s ease",
-                  background: isActive ? "rgba(255,107,43,0.12)" : "transparent",
-                  color: isActive ? "var(--brand-orange-light)" : "var(--text-secondary)",
-                  border: isActive ? "1px solid rgba(255,107,43,0.2)" : "1px solid transparent",
-                }}
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm whitespace-nowrap hover:bg-sidebar-accent ${active ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground [&>svg]:text-sidebar-primary" : ""}`}
               >
-                <span style={{ fontSize: 16 }}>{item.icon}</span>
-                {item.label}
+                <Icon className="size-4" />
+                {label}
               </Link>
             );
           })}
         </nav>
-
-        {/* Logout */}
-        <button
-          onClick={handleLogout}
-          className="btn-ghost"
-          style={{ width: "100%", justifyContent: "flex-start", padding: "10px 12px", marginTop: 8 }}
-        >
-          <span style={{ fontSize: 16 }}>👋</span>
-          Sign Out
-        </button>
+        <div className="mt-auto hidden md:block">
+          <button onClick={() => signOut({ callbackUrl: "/login" })} className="flex items-center gap-2 text-sm hover:text-sidebar-accent-foreground">
+            <LogOut className="size-4" />
+            Log out
+          </button>
+        </div>
       </aside>
-
-      {/* Main content */}
-      <main style={{ flex: 1, overflow: "auto", minHeight: "calc(100vh - 56px)" }}>
-        {children}
-      </main>
+      <main className="min-w-0 flex-1 p-6 md:p-10">{children}</main>
     </div>
   );
 }
-

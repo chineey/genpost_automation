@@ -1,12 +1,11 @@
 "use client";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Suspense } from "react";
-
-import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import type { Currency } from "@/lib/geo";
+import { AuthShell, FormError } from "@/components/AuthShell";
 
 const PLAN_LABELS_USD: Record<string, string> = {
   starter: "Starter ($14/mo)",
@@ -54,7 +53,6 @@ function SignupForm() {
     }
 
     try {
-      // 1. Create account via backend route
       const regRes = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,12 +64,7 @@ function SignupForm() {
         throw new Error(regData.error ?? "Registration failed");
       }
 
-      // 2. Automatically log in the user
-      const loginRes = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
+      const loginRes = await signIn("credentials", { email, password, redirect: false });
 
       if (loginRes?.error) {
         setError(loginRes.error);
@@ -80,146 +73,44 @@ function SignupForm() {
         router.push("/dashboard");
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Signup failed";
-      setError(msg);
+      setError(err instanceof Error ? err.message : "Signup failed");
       setLoading(false);
     }
   }
 
-
   return (
-    <>
-      <div style={{ textAlign: "center", marginBottom: 32 }}>
-        <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 12,
-              background: "linear-gradient(135deg, #FF6B2B, #FFAA00)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 20,
-            }}
-          >
-            ⚡
-          </div>
-          <span className="font-display" style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--text-primary)" }}>
-            Genpost
-          </span>
-        </Link>
-
-        <h1 className="font-display" style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: 24, marginBottom: 8 }}>
-          Create your account
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-          {selectedPlan === "free"
-            ? "Start with 10 free posts — no card required"
-            : `You selected: ${planLabels[selectedPlan] ?? selectedPlan}`}
-        </p>
-      </div>
-
-      <form onSubmit={handleSignup} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {error && (
-          <div
-            style={{
-              padding: "12px 16px",
-              borderRadius: 10,
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.2)",
-              color: "#F87171",
-              fontSize: "0.85rem",
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <div className="form-group">
-          <label className="label" htmlFor="signup-email">Email address</label>
-          <input
-            id="signup-email"
-            type="email"
-            className="input"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
+    <AuthShell
+      title="Create your account"
+      sub={selectedPlan === "free" ? "Start with 10 free posts — no card required." : `You selected: ${planLabels[selectedPlan] ?? selectedPlan}`}
+    >
+      <form className="space-y-4" onSubmit={handleSignup}>
+        {error && <FormError>{error}</FormError>}
+        <div>
+          <label htmlFor="signup-email" className="mb-1 block text-sm font-medium">Email</label>
+          <input id="signup-email" required type="email" className="field" placeholder="you@example.com" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
-
-        <div className="form-group">
-          <label className="label" htmlFor="signup-password">Password</label>
-          <input
-            id="signup-password"
-            type="password"
-            className="input"
-            placeholder="Min. 8 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
+        <div>
+          <label htmlFor="signup-password" className="mb-1 block text-sm font-medium">Password</label>
+          <input id="signup-password" required type="password" className="field" placeholder="Min. 8 characters" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
-
-        <button
-          id="signup-submit"
-          type="submit"
-          className="btn-primary"
-          disabled={loading}
-          style={{ width: "100%", justifyContent: "center", padding: "14px", marginTop: 8 }}
-        >
-          {loading ? <span className="spinner" /> : "Create Account →"}
+        <div className="rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+          Region detected: <b className="text-foreground">{currency === "ngn" ? "Nigeria / Africa · NGN" : "International · USD"}</b>
+        </div>
+        <button id="signup-submit" type="submit" disabled={loading} className="btn btn-loud w-full py-3">
+          {loading ? <Loader2 className="size-4 animate-spin" /> : "Create account"}
         </button>
-
-        <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.75rem", lineHeight: 1.5 }}>
-          By signing up you agree to our{" "}
-          <Link href="/terms" style={{ color: "var(--text-secondary)", textDecoration: "underline" }}>Terms of Service</Link>{" "}
-          and{" "}
-          <Link href="/privacy" style={{ color: "var(--text-secondary)", textDecoration: "underline" }}>Privacy Policy</Link>.
-        </p>
       </form>
-
-      <div className="divider" style={{ margin: "24px 0" }} />
-
-      <p style={{ textAlign: "center", color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-        Already have an account?{" "}
-        <Link href="/login" style={{ color: "var(--brand-orange-light)", fontWeight: 500, textDecoration: "none" }}>
-          Sign in
-        </Link>
+      <p className="mt-6 text-sm text-muted-foreground">
+        Already have an account? <Link href="/login" className="font-semibold text-primary">Log in</Link>
       </p>
-    </>
+    </AuthShell>
   );
 }
 
 export default function SignupPage() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--bg-base)",
-        padding: 24,
-        position: "relative",
-        overflow: "hidden",
-      }}
-    >
-      <div className="orb orb-orange" style={{ width: 500, height: 500, top: -100, left: -100 }} />
-      <div className="orb orb-amber" style={{ width: 400, height: 400, bottom: -100, right: -100 }} />
-      <div className="grid-pattern" style={{ position: "absolute", inset: 0, opacity: 0.4 }} />
-
-      <div
-        className="card glass animate-fade-up"
-        style={{ width: "100%", maxWidth: 420, padding: 40, position: "relative", zIndex: 1 }}
-      >
-        <Suspense fallback={<div className="skeleton" style={{ height: 400 }} />}>
-          <SignupForm />
-        </Suspense>
-      </div>
-    </div>
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <SignupForm />
+    </Suspense>
   );
 }

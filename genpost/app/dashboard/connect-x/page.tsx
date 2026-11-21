@@ -1,8 +1,17 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Suspense } from "react";
+import { CheckCircle2, Loader2, RefreshCw, ShieldCheck, TriangleAlert } from "lucide-react";
+
+const ERROR_MESSAGES: Record<string, string> = {
+  access_denied: "You declined the X authorization. Please try again.",
+  missing_params: "Missing OAuth parameters. Please try again.",
+  unauthorized: "Session mismatch. Please sign out and back in.",
+  missing_verifier: "OAuth code verifier missing. Please try again.",
+  callback_failed: "Connection failed. Please try again.",
+  x_already_linked: "This X account is already linked to another Genpost account. Each X account can only be connected to one Genpost account.",
+};
 
 function ConnectXContent() {
   const { data: session } = useSession();
@@ -32,12 +41,10 @@ function ConnectXContent() {
 
   async function handleConnect() {
     setConnecting(true);
-    // Generate a simple code verifier (32 random bytes as hex)
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
     const codeVerifier = Array.from(array, (b) => b.toString(16).padStart(2, "0")).join("");
 
-    // Store verifier in cookie for the callback to retrieve
     document.cookie = `x_code_verifier=${encodeURIComponent(codeVerifier)}; path=/; max-age=600; SameSite=Lax`;
 
     const userId = (session?.user as any)?.id;
@@ -58,180 +65,62 @@ function ConnectXContent() {
 
   async function handleDisconnect() {
     if (!confirm("Disconnect your X account? Scheduled posts will stop publishing.")) return;
-    
-    const res = await fetch("/api/auth/x", {
-      method: "DELETE",
-    });
-
-    if (res.ok) {
-      setXUsername(null);
-    }
+    const res = await fetch("/api/auth/x", { method: "DELETE" });
+    if (res.ok) setXUsername(null);
   }
 
-  const ERROR_MESSAGES: Record<string, string> = {
-    access_denied: "You declined the X authorization. Please try again.",
-    missing_params: "Missing OAuth parameters. Please try again.",
-    unauthorized: "Session mismatch. Please sign out and back in.",
-    missing_verifier: "OAuth code verifier missing. Please try again.",
-    callback_failed: "Connection failed. Please try again.",
-    x_already_linked: "This X account is already linked to another Genpost account. Each X account can only be connected to one Genpost account.",
-  };
-
-  if (loading) {
-    return <div className="skeleton" style={{ height: 200, borderRadius: 16 }} />;
-  }
+  if (loading) return <div className="h-64 animate-pulse rounded-2xl bg-muted" />;
 
   return (
-    <div style={{ maxWidth: 560 }}>
-      {/* Error banner */}
+    <>
       {errorParam && ERROR_MESSAGES[errorParam] && (
-        <div
-          style={{
-            padding: "14px 18px",
-            borderRadius: 12,
-            background: "rgba(239,68,68,0.1)",
-            border: "1px solid rgba(239,68,68,0.2)",
-            color: "#F87171",
-            fontSize: "0.875rem",
-            marginBottom: 20,
-          }}
-        >
-          ⚠️ {ERROR_MESSAGES[errorParam]}
+        <div className="mt-6 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />{ERROR_MESSAGES[errorParam]}
         </div>
       )}
-
-      {/* Success banner */}
       {connected && (
-        <div
-          style={{
-            padding: "14px 18px",
-            borderRadius: 12,
-            background: "rgba(74,222,128,0.1)",
-            border: "1px solid rgba(74,222,128,0.2)",
-            color: "#4ADE80",
-            fontSize: "0.875rem",
-            marginBottom: 20,
-          }}
-        >
-          ✅ X account connected successfully!
+        <div className="mt-6 flex items-center gap-2 rounded-lg bg-success/15 px-4 py-3 text-sm text-success">
+          <CheckCircle2 className="size-4" />X account connected successfully!
         </div>
       )}
 
-      {/* Connection card */}
-      <div className="card responsive-card">
+      <div className="panel mt-8 p-8 text-center">
+        <div className="mx-auto grid size-16 place-items-center rounded-2xl bg-ink font-display text-3xl font-bold text-ink-foreground">𝕏</div>
         {xUsername ? (
           <>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-              <div
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, #1DA1F2, #0d8bd9)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 26,
-                  flexShrink: 0,
-                }}
-              >
-                𝕏
-              </div>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: "1.1rem" }}>@{xUsername}</div>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                  <div className="status-dot green" />
-                  <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Connected and posting</span>
-                </div>
-              </div>
-            </div>
-
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", lineHeight: 1.6, marginBottom: 24 }}>
-              Genpost will publish your approved, scheduled posts automatically to this account.
-              Your access tokens are encrypted with AES-256-GCM.
-            </p>
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button onClick={handleConnect} className="btn-secondary" style={{ padding: "10px 20px" }}>
-                🔄 Reconnect
-              </button>
-              <button onClick={handleDisconnect} className="btn-danger" style={{ padding: "10px 20px" }}>
-                Disconnect
-              </button>
+            <p className="mt-6 flex items-center justify-center gap-2 font-semibold text-success"><CheckCircle2 className="size-5" />Connected and posting</p>
+            <p className="mt-1 text-lg font-semibold">@{xUsername}</p>
+            <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground">GenPost will publish your approved, scheduled posts automatically to this account.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-2">
+              <button onClick={handleConnect} className="btn btn-ghost"><RefreshCw className="size-4" />Reconnect</button>
+              <button onClick={handleDisconnect} className="btn btn-ghost text-destructive">Disconnect</button>
             </div>
           </>
         ) : (
           <>
-            <div
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: "50%",
-                background: "var(--bg-elevated)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 28,
-                marginBottom: 20,
-                border: "2px dashed var(--bg-border)",
-              }}
-            >
-              𝕏
-            </div>
-            <h2 className="font-display" style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: 10 }}>
-              Connect your X account
-            </h2>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", lineHeight: 1.7, marginBottom: 24 }}>
-              Genpost uses OAuth 2.0 to post on your behalf — your password is never stored.
-              Tokens are encrypted and auto-refreshed before each post.
-            </p>
-
-            <button
-              id="connect-x-btn"
-              onClick={handleConnect}
-              disabled={connecting}
-              className="btn-primary"
-              style={{ padding: "13px 28px" }}
-            >
-              {connecting ? <span className="spinner" /> : "Connect X Account →"}
+            <p className="mt-6 text-lg font-semibold">No account linked</p>
+            <p className="mt-1 text-sm text-muted-foreground">You&apos;ll be redirected to X to approve access.</p>
+            <button id="connect-x-btn" onClick={handleConnect} disabled={connecting} className="btn btn-loud mt-6 px-8 py-3">
+              {connecting ? <Loader2 className="size-4 animate-spin" /> : "Connect with X"}
             </button>
           </>
         )}
+        <p className="mt-8 flex items-center justify-center gap-2 text-xs text-muted-foreground"><ShieldCheck className="size-4" />Secured with OAuth 2.0. Tokens are encrypted and we never see your password.</p>
       </div>
 
-      {/* Security info */}
-      <div
-        style={{
-          marginTop: 20,
-          padding: "16px 20px",
-          borderRadius: 12,
-          background: "rgba(255,170,0,0.06)",
-          border: "1px solid rgba(255,170,0,0.15)",
-          fontSize: "0.8rem",
-          color: "var(--text-secondary)",
-          lineHeight: 1.6,
-        }}
-      >
-        🔒 <strong style={{ color: "var(--text-primary)" }}>Security note:</strong> Genpost only receives
-        permission to <em>read</em> and <em>write tweets</em> on your behalf. We never access DMs, followers lists,
-        or account settings. You can revoke access from X&apos;s Connected Apps settings at any time.
-      </div>
-    </div>
+      <p className="mt-4 rounded-lg bg-muted px-4 py-3 text-xs text-muted-foreground">
+        <b className="text-foreground">Security note:</b> GenPost only gets permission to read and write posts on your behalf. We never access DMs, follower lists or account settings. You can revoke access from X&apos;s Connected Apps settings at any time.
+      </p>
+    </>
   );
 }
 
 export default function ConnectXPage() {
   return (
-    <div className="responsive-padding" style={{ maxWidth: 700, margin: "0 auto" }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
-          🔗 Connect X Account
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-          Link your X (Twitter) account so Genpost can publish on your behalf.
-        </p>
-      </div>
-      <Suspense fallback={<div className="skeleton" style={{ height: 200, borderRadius: 16 }} />}>
+    <div className="mx-auto max-w-xl">
+      <h1 className="text-3xl font-bold">Connect X</h1>
+      <p className="text-muted-foreground">Link your account so GenPost can publish on schedule.</p>
+      <Suspense fallback={<div className="mt-8 h-64 animate-pulse rounded-2xl bg-muted" />}>
         <ConnectXContent />
       </Suspense>
     </div>

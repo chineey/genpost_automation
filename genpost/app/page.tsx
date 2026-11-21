@@ -1,668 +1,112 @@
 "use client";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import { CalendarClock, Sparkles, Brain, Image as ImageIcon, ShieldCheck, BarChart3, Check } from "lucide-react";
 import type { Currency } from "@/lib/geo";
+import { PublicNav, PublicFooter } from "@/components/PublicNav";
 
 const FEATURES = [
-  {
-    icon: "⚡",
-    title: "AI Draft Generation",
-    desc: "Tell Genpost your topic and tone. Get 10–50 ready-to-post drafts in seconds, powered by Gemini AI.",
-  },
-  {
-    icon: "📅",
-    title: "Smart Scheduling",
-    desc: "Pick your slots. Genpost publishes on the dot — even while you sleep — with a rock-solid cron engine.",
-  },
-  {
-    icon: "🔗",
-    title: "One-Click X Connect",
-    desc: "Securely link your X account with OAuth 2.0. Genpost posts on your behalf, never storing your password.",
-  },
-  {
-    icon: "📊",
-    title: "Post Analytics",
-    desc: "See what's posted, what failed, and what's queued — all in a clean, real-time dashboard.",
-  },
-  {
-    icon: "🎯",
-    title: "Any Niche. Any Topic.",
-    desc: "Tech, business, lifestyle, finance — define your niche and post types. Genpost adapts to your brand.",
-  },
-  {
-    icon: "🔒",
-    title: "Bank-Grade Security",
-    desc: "All tokens encrypted with AES-256-GCM. Row-Level Security on every database row. Your data stays yours.",
-  },
+  { i: Sparkles, t: "AI draft generation", d: "Pick topics and formats, get 5–50 ready-to-post drafts in seconds, powered by Gemini." },
+  { i: Brain, t: "Amnesia voice memory", d: "Your tone, opinions and phrases — remembered across every batch." },
+  { i: CalendarClock, t: "Set-and-forget scheduling", d: "Approve, pick a time, and GenPost posts to X for you, even while you sleep." },
+  { i: ImageIcon, t: "Media ready", d: "Attach up to 4 images or a single video to any post." },
+  { i: BarChart3, t: "Clear quotas", d: "Always see what's posted, failed and queued, and how many posts you've used this month." },
+  { i: ShieldCheck, t: "Secure X link", d: "OAuth 2.0 with encrypted tokens (AES-256-GCM). We never see your password." },
 ];
 
 const POST_TYPES = ["Question", "Hot Take", "Info", "Joke", "News", "Explanation"];
-const DEMO_POSTS = [
-  {
-    type: "Hot Take",
-    topic: "AI/ML",
-    content: "Unpopular opinion: most 'AI engineers' are just writing prompt wrappers. Real AI engineering is still rare.",
-    chars: 112,
-  },
-  {
-    type: "Joke",
-    topic: "Backend",
-    content: "My code works in dev, staging, and every machine except production. Classic.",
-    chars: 76,
-  },
-  {
-    type: "Info",
-    topic: "Python",
-    content: "Python walrus operator (:=) lets you assign and evaluate in one line. Saves a surprising amount of boilerplate.",
-    chars: 108,
-  },
-];
 
-const USD_PLANS = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "7 days",
-    posts: "10 posts",
-    badge: "badge-free",
-    features: ["AI draft generation", "1 X account", "Basic scheduling", "Dashboard access"],
-    cta: "Start Free Trial",
-    href: "/signup",
-    highlighted: false,
-  },
-  {
-    name: "Starter",
-    price: "$14",
-    period: "/month",
-    posts: "30 posts/mo",
-    badge: "badge-starter",
-    features: ["Everything in Free", "30 posts/month", "AI drafts unlimited", "Email support"],
-    cta: "Get Started",
-    href: "/signup?plan=starter",
-    highlighted: false,
-  },
-  {
-    name: "Growth",
-    price: "$35",
-    period: "/month",
-    posts: "100 posts/mo",
-    badge: "badge-growth",
-    features: ["Everything in Starter", "100 posts/month", "Post analytics", "Priority support"],
-    cta: "Go Growth",
-    href: "/signup?plan=growth",
-    highlighted: true,
-  },
-  {
-    name: "Agency",
-    price: "$89",
-    period: "/month",
-    posts: "300+ posts/mo",
-    badge: "badge-agency",
-    features: ["Everything in Growth", "300+ posts/month", "Multiple X accounts", "Dedicated support"],
-    cta: "Go Agency",
-    href: "/signup?plan=agency",
-    highlighted: false,
-  },
-];
-
-const NGN_PLANS = [
-  {
-    name: "Free",
-    price: "₦0",
-    period: "7 days",
-    posts: "10 posts",
-    badge: "badge-free",
-    features: ["AI draft generation", "1 X account", "Basic scheduling", "Dashboard access"],
-    cta: "Start Free Trial",
-    href: "/signup",
-    highlighted: false,
-  },
-  {
-    name: "Starter",
-    price: "₦5,500",
-    period: "/month",
-    posts: "30 posts/mo",
-    badge: "badge-starter",
-    features: ["Everything in Free", "30 posts/month", "AI drafts unlimited", "Email support"],
-    cta: "Get Started",
-    href: "/signup?plan=starter",
-    highlighted: false,
-  },
-  {
-    name: "Growth",
-    price: "₦11,000",
-    period: "/month",
-    posts: "100 posts/mo",
-    badge: "badge-growth",
-    features: ["Everything in Starter", "100 posts/month", "Post analytics", "Priority support"],
-    cta: "Go Growth",
-    href: "/signup?plan=growth",
-    highlighted: true,
-  },
-  {
-    name: "Agency",
-    price: "₦27,500",
-    period: "/month",
-    posts: "300+ posts/mo",
-    badge: "badge-agency",
-    features: ["Everything in Growth", "300+ posts/month", "Multiple X accounts", "Dedicated support"],
-    cta: "Go Agency",
-    href: "/signup?plan=agency",
-    highlighted: false,
-  },
+const PLANS = [
+  { name: "Free", usd: "$0", ngn: "₦0", period: "", posts: "10 posts", features: ["AI draft generation", "1 X account", "Scheduling", "Images & video"], cta: "Start free", href: "/signup" },
+  { name: "Starter", usd: "$14", ngn: "₦5,500", period: "/mo", posts: "30 posts/mo", features: ["Everything in Free", "30 posts/month"], cta: "Get Starter", href: "/signup?plan=starter" },
+  { name: "Growth", usd: "$35", ngn: "₦11,000", period: "/mo", posts: "100 posts/mo", features: ["Everything in Starter", "100 posts/month"], cta: "Go Growth", href: "/signup?plan=growth", featured: true },
+  { name: "Agency", usd: "$89", ngn: "₦27,500", period: "/mo", posts: "300 posts/mo", features: ["Everything in Growth", "300 posts/month", "Cancel anytime"], cta: "Go Agency", href: "/signup?plan=agency" },
 ];
 
 export default function LandingPage() {
   const { data: session } = useSession();
   const [currency, setCurrency] = useState<Currency>("usd");
-  const [detectedRegion, setDetectedRegion] = useState<string | null>(null);
-  const [regionLoading, setRegionLoading] = useState(true);
-  const [demoIdx, setDemoIdx] = useState(0);
 
-  // Auto-detect region on first load
   useEffect(() => {
     fetch("/api/detect-region")
       .then((r) => r.json())
-      .then((data) => {
-        setCurrency(data.currency ?? "usd");
-        setDetectedRegion(data.region ?? null);
-      })
-      .catch(() => {
-        // silently fall back to USD
-      })
-      .finally(() => setRegionLoading(false));
+      .then((data) => setCurrency(data.currency ?? "usd"))
+      .catch(() => {});
   }, []);
 
-  const plans = currency === "usd" ? USD_PLANS : NGN_PLANS;
-
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg-base)" }}>
-      {/* ── NAV ── */}
-      <nav
-        className="glass"
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 100,
-          padding: "0 24px",
-        }}
-      >
-        <div
-          className="container"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            height: 64,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 10,
-                background: "linear-gradient(135deg, #FF6B2B, #FFAA00)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 16,
-              }}
-            >
-              ⚡
+    <div className="min-h-screen">
+      <PublicNav />
+      <section className="relative overflow-hidden">
+        <div className="grid-paper absolute inset-0 opacity-50 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 px-6 py-20 md:grid-cols-2 md:py-28">
+          <div>
+            <span className="chip mb-6 cursor-default"><span className="size-2 rounded-full bg-primary" /> Now with Amnesia voice memory</span>
+            <h1 className="text-5xl font-extrabold leading-[1.02] md:text-6xl">Post every day.<br /><span className="text-primary">Write once a week.</span></h1>
+            <p className="mt-6 max-w-md text-lg text-muted-foreground">GenPost drafts posts in your voice, lets you approve them in a click, and publishes them to X on schedule.</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href={session ? "/dashboard" : "/signup"} className="btn btn-loud px-6 py-3">{session ? "Go to dashboard" : "Start free"}</Link>
+              <a href="#pricing" className="btn btn-ghost px-6 py-3">See pricing</a>
             </div>
-            <span
-              className="font-display"
-              style={{ fontWeight: 700, fontSize: "1.1rem", color: "var(--text-primary)" }}
-            >
-              Genpost
-            </span>
+            <p className="mt-4 text-xs text-muted-foreground">No credit card required · 10 free posts · Cancel anytime</p>
           </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {session ? (
-              <Link href="/dashboard" className="btn-primary" style={{ padding: "9px 20px", fontSize: "0.85rem" }}>
-                Go to Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="btn-ghost hide-mobile">
-                  Sign In
-                </Link>
-                <Link href="/signup" className="btn-primary" style={{ padding: "9px 20px", fontSize: "0.85rem" }}>
-                  <span className="hide-mobile">Get Started Free</span>
-                  <span className="show-mobile">Get Started</span>
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      {/* ── HERO ── */}
-      <section
-        style={{
-          paddingTop: 140,
-          paddingBottom: 100,
-          position: "relative",
-          overflow: "hidden",
-        }}
-      >
-        {/* Background orbs */}
-        <div
-          className="orb orb-orange"
-          style={{ width: 600, height: 600, top: -100, left: "50%", transform: "translateX(-50%)", opacity: 0.4 }}
-        />
-        <div
-          className="orb orb-amber"
-          style={{ width: 300, height: 300, top: 200, right: 100 }}
-        />
-        <div
-          className="orb orb-purple"
-          style={{ width: 400, height: 400, bottom: 0, left: 100 }}
-        />
-
-        {/* Grid pattern */}
-        <div
-          className="grid-pattern"
-          style={{ position: "absolute", inset: 0, opacity: 0.5 }}
-        />
-
-        <div className="container" style={{ position: "relative", zIndex: 1, textAlign: "center" }}>
-          <div
-            className="animate-fade-up"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 16px",
-              borderRadius: 9999,
-              background: "rgba(255,107,43,0.1)",
-              border: "1px solid rgba(255,107,43,0.25)",
-              color: "var(--brand-orange-light)",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              marginBottom: 32,
-              letterSpacing: "0.05em",
-            }}
-          >
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#FF6B2B", display: "inline-block" }} />
-            AI-POWERED · AUTO-POSTS · ZERO EFFORT
-          </div>
-
-          <h1
-            className="font-display animate-fade-up delay-100"
-            style={{
-              fontSize: "clamp(2.5rem, 6vw, 4.5rem)",
-              fontWeight: 800,
-              lineHeight: 1.1,
-              marginBottom: 24,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            Your X presence,{" "}
-            <span className="gradient-text">on autopilot.</span>
-          </h1>
-
-          <p
-            className="animate-fade-up delay-200"
-            style={{
-              fontSize: "clamp(1rem, 2vw, 1.25rem)",
-              color: "var(--text-secondary)",
-              maxWidth: 560,
-              margin: "0 auto 40px",
-              lineHeight: 1.7,
-            }}
-          >
-            Tell Genpost your topic. Get AI-crafted posts. Approve in seconds.
-            Genpost publishes automatically — every day, while you focus on what matters.
-          </p>
-
-          <div
-            className="animate-fade-up delay-300"
-            style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}
-          >
-            <Link href="/signup" className="btn-primary" style={{ padding: "14px 32px", fontSize: "1rem" }}>
-              Start for Free →
-            </Link>
-            <a href="#pricing" className="btn-secondary" style={{ padding: "14px 28px", fontSize: "1rem" }}>
-              View Pricing
-            </a>
-          </div>
-
-          <p
-            className="animate-fade-up delay-400"
-            style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginTop: 16 }}
-          >
-            No credit card required • 10 free posts • Cancel anytime
-          </p>
-        </div>
-      </section>
-
-      {/* ── DEMO CARD ── */}
-      <section style={{ padding: "0 0 100px" }}>
-        <div className="container">
-          <div
-            className="card animate-float responsive-card"
-            style={{
-              maxWidth: 720,
-              margin: "0 auto",
-              background: "var(--bg-card)",
-              position: "relative",
-            }}
-          >
-            {/* Animated border glow */}
-            <div
-              style={{
-                position: "absolute",
-                inset: -1,
-                borderRadius: "inherit",
-                background: "linear-gradient(135deg, rgba(255,107,43,0.4), transparent, rgba(255,170,0,0.3))",
-                zIndex: -1,
-                filter: "blur(2px)",
-              }}
-            />
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: "rgba(255,107,43,0.15)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 18,
-                  }}
-                >
-                  ⚡
-                </div>
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>AI Generated Draft</div>
-                  <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    Topic: {DEMO_POSTS[demoIdx].topic} · Type: {DEMO_POSTS[demoIdx].type}
-                  </div>
-                </div>
-              </div>
-              <span className={`badge badge-draft`}>Draft</span>
-            </div>
-
-            <div
-              style={{
-                background: "var(--bg-elevated)",
-                borderRadius: 12,
-                padding: "16px 20px",
-                marginBottom: 20,
-                border: "1px solid var(--bg-border)",
-                fontSize: "1rem",
-                lineHeight: 1.7,
-                color: "var(--text-primary)",
-              }}
-            >
-              &ldquo;{DEMO_POSTS[demoIdx].content}&rdquo;
-            </div>
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-              <div style={{ display: "flex", gap: 8 }}>
-                {DEMO_POSTS.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setDemoIdx(i)}
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      background: i === demoIdx ? "var(--brand-orange)" : "var(--bg-elevated)",
-                      border: "none",
-                      cursor: "pointer",
-                      transition: "all 0.2s",
-                    }}
-                  />
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <button className="btn-secondary" style={{ padding: "8px 16px", fontSize: "0.8rem" }}>
-                  ✏️ Edit
-                </button>
-                <button className="btn-primary" style={{ padding: "8px 16px", fontSize: "0.8rem" }}>
-                  ✓ Approve
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section id="features" style={{ padding: "80px 0" }}>
-        <div className="container">
-          <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <h2
-              className="font-display"
-              style={{ fontSize: "clamp(1.75rem, 4vw, 2.5rem)", fontWeight: 700, marginBottom: 16 }}
-            >
-              Everything you need to{" "}
-              <span className="gradient-text">grow on X</span>
-            </h2>
-            <p style={{ color: "var(--text-secondary)", fontSize: "1.05rem" }}>
-              Built for creators, founders, and agencies who don&apos;t have time to post manually.
-            </p>
-          </div>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 20,
-            }}
-          >
-            {FEATURES.map((f, i) => (
-              <div
-                key={i}
-                className="card responsive-card"
-              >
-                <div
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 12,
-                    background: "rgba(255,107,43,0.1)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 22,
-                    marginBottom: 16,
-                  }}
-                >
-                  {f.icon}
-                </div>
-                <h3 style={{ fontWeight: 600, marginBottom: 8, fontSize: "1rem" }}>{f.title}</h3>
-                <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", lineHeight: 1.6 }}>{f.desc}</p>
+          <div className="panel rotate-1 p-5 shadow-xl">
+            <div className="mb-4 flex items-center justify-between text-sm"><span className="font-semibold">This week</span><span className="text-muted-foreground">12 / 100 used</span></div>
+            {[["Mon 09:00", "Shipping beats perfect.", "Approved"], ["Tue 18:00", "3 things I stopped doing to write faster…", "Draft"], ["Wed 12:00", "Consistency is a scheduling problem.", "Posted"]].map(([t, x, s]) => (
+              <div key={t} className="mb-3 rounded-xl border bg-background p-4 last:mb-0">
+                <div className="mb-1 flex justify-between text-xs text-muted-foreground"><span>{t}</span><span className={s === "Approved" ? "font-semibold text-primary" : ""}>{s}</span></div>
+                <p className="text-sm">{x}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── POST TYPES ── */}
-      <section style={{ padding: "60px 0" }}>
-        <div className="container" style={{ textAlign: "center" }}>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", fontWeight: 600, letterSpacing: "0.1em", marginBottom: 20, textTransform: "uppercase" }}>
-            Post types you can generate
-          </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
-            {POST_TYPES.map((t) => (
-              <span key={t} className="chip active">{t}</span>
-            ))}
-          </div>
+      <section id="features" className="mx-auto max-w-6xl px-6 py-20">
+        <h2 className="max-w-lg text-4xl font-bold">Everything between an idea and a published post.</h2>
+        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map(({ i: I, t, d }) => (
+            <div key={t} className="panel p-6">
+              <I className="mb-4 size-6 text-primary" />
+              <h3 className="text-lg font-semibold">{t}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{d}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-14 text-center">
+          <p className="mb-4 text-xs font-semibold tracking-widest text-muted-foreground uppercase">Post types you can generate</p>
+          <div className="flex flex-wrap justify-center gap-2">{POST_TYPES.map((t) => <span key={t} className="chip chip-on cursor-default">{t}</span>)}</div>
         </div>
       </section>
 
-      {/* ── PRICING ── */}
-      <section id="pricing" style={{ padding: "100px 0" }}>
-        <div className="container">
-          <div style={{ textAlign: "center", marginBottom: 48 }}>
-            <h2
-              className="font-display"
-              style={{ fontSize: "clamp(1.75rem, 4vw, 2.5rem)", fontWeight: 700, marginBottom: 16 }}
-            >
-              Simple, transparent pricing
-            </h2>
-            <p style={{ color: "var(--text-secondary)", marginBottom: 28 }}>
-              Start free. Scale as you grow. No hidden fees.
-            </p>
-
-
-          </div>
-
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-              gap: 20,
-            }}
-          >
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className="card responsive-card"
-                style={{
-                  position: "relative",
-                  ...(plan.highlighted
-                    ? {
-                        border: "1px solid rgba(255,107,43,0.4)",
-                        background: "rgba(255,107,43,0.05)",
-                      }
-                    : {}),
-                }}
-              >
-                {plan.highlighted && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: -14,
-                      left: "50%",
-                      transform: "translateX(-50%)",
-                      background: "linear-gradient(135deg, #FF6B2B, #FFAA00)",
-                      color: "white",
-                      fontSize: "0.7rem",
-                      fontWeight: 700,
-                      padding: "4px 14px",
-                      borderRadius: 9999,
-                      letterSpacing: "0.08em",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    MOST POPULAR
-                  </div>
-                )}
-                <div style={{ marginBottom: 20 }}>
-                  <span className={`badge ${plan.badge}`} style={{ marginBottom: 12, display: "inline-flex" }}>
-                    {plan.name}
-                  </span>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 8 }}>
-                    <span
-                      className="font-display"
-                      style={{ fontSize: "2rem", fontWeight: 800 }}
-                    >
-                      {plan.price}
-                    </span>
-                    <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>{plan.period}</span>
-                  </div>
-                  <div style={{ color: "var(--text-secondary)", fontSize: "0.8rem", marginTop: 4 }}>
-                    {plan.posts}
-                  </div>
-                </div>
-
-                <div className="divider" style={{ marginBottom: 20 }} />
-
-                <ul style={{ listStyle: "none", marginBottom: 24, display: "flex", flexDirection: "column", gap: 10 }}>
-                  {plan.features.map((f) => (
-                    <li key={f} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                      <span style={{ color: "#4ADE80", flexShrink: 0 }}>✓</span>
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={session ? "/dashboard/settings" : plan.href}
-                  className={plan.highlighted ? "btn-primary" : "btn-secondary"}
-                  style={{ display: "flex", justifyContent: "center", width: "100%" }}
-                >
-                  {plan.cta}
-                </Link>
+      <section id="pricing" className="bg-ink py-20 text-ink-foreground">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="text-4xl font-bold">Simple pricing</h2>
+          <p className="mt-2 opacity-70">Prices shown in {currency === "ngn" ? "Naira (NGN)" : "US Dollars (USD)"}, billed monthly via Paystack.</p>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {PLANS.map((p) => (
+              <div key={p.name} className={`flex flex-col rounded-2xl border p-7 ${p.featured ? "border-primary bg-primary text-primary-foreground" : "border-sidebar-border bg-sidebar-accent"}`}>
+                <h3 className="text-lg font-semibold">{p.name}</h3>
+                <div className="mt-3 font-display text-4xl font-bold">{currency === "ngn" ? p.ngn : p.usd}<span className="text-base font-normal opacity-70"> {p.period}</span></div>
+                <p className="mt-1 text-sm opacity-70">{p.posts}</p>
+                <ul className="mt-6 flex-1 space-y-2 text-sm">{p.features.map((x) => <li key={x} className="flex gap-2"><Check className="size-4 shrink-0" />{x}</li>)}</ul>
+                <Link href={session ? "/dashboard/settings" : p.href} className={`btn mt-8 w-full ${p.featured ? "btn-ink" : "btn-loud"}`}>{p.cta}</Link>
               </div>
             ))}
           </div>
-
-          {currency === "ngn" && (
-            <p style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "0.78rem", marginTop: 20 }}>
-              NGN prices are PPP-adjusted. Payment via Paystack — supports Verve, Visa, Mastercard, bank transfer.
-            </p>
-          )}
+          {currency === "ngn" && <p className="mt-6 text-center text-xs opacity-60">NGN prices are PPP-adjusted. Paystack supports Verve, Visa, Mastercard and bank transfer.</p>}
         </div>
       </section>
 
-      {/* ── CTA BANNER ── */}
-      <section style={{ padding: "80px 0 120px" }}>
-        <div className="container">
-          <div
-            className="cta-banner"
-          >
-            <div className="orb orb-orange" style={{ width: 400, height: 400, top: -100, left: "50%", transform: "translateX(-50%)" }} />
-            <h2
-              className="font-display"
-              style={{ fontSize: "clamp(1.75rem, 4vw, 2.75rem)", fontWeight: 700, marginBottom: 16, position: "relative", zIndex: 1 }}
-            >
-              Start posting consistently today.
-            </h2>
-            <p style={{ color: "var(--text-secondary)", marginBottom: 32, fontSize: "1.05rem", position: "relative", zIndex: 1 }}>
-              Join creators who never miss a post.
-            </p>
-            <Link href="/signup" className="btn-primary" style={{ padding: "16px 40px", fontSize: "1.05rem", position: "relative", zIndex: 1 }}>
-              Get Started Free →
-            </Link>
-          </div>
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <div className="panel p-10 text-center md:p-14">
+          <h2 className="text-3xl font-bold md:text-4xl">Start posting consistently today.</h2>
+          <p className="mt-3 text-muted-foreground">Join creators who never miss a post.</p>
+          <Link href="/signup" className="btn btn-loud mt-8 px-8 py-3">Get started free</Link>
         </div>
       </section>
-
-      {/* ── FOOTER ── */}
-      <footer style={{ borderTop: "1px solid var(--bg-border)", padding: "40px 0 32px" }}>
-        <div
-          className="container footer-container"
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: 8,
-                background: "linear-gradient(135deg, #FF6B2B, #FFAA00)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 13,
-              }}
-            >
-              ⚡
-            </div>
-            <span className="font-display" style={{ fontWeight: 700, fontSize: "0.95rem" }}>Genpost</span>
-          </div>
-          <div style={{ display: "flex", gap: 24 }}>
-            <Link href="/terms" style={{ color: "var(--text-muted)", fontSize: "0.8rem", textDecoration: "none" }}>Terms of Service</Link>
-            <Link href="/privacy" style={{ color: "var(--text-muted)", fontSize: "0.8rem", textDecoration: "none" }}>Privacy Policy</Link>
-          </div>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>
-            © {new Date().getFullYear()} Genpost. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <PublicFooter />
     </div>
   );
 }

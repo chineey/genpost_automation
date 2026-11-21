@@ -1,18 +1,19 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
+import { Brain, Loader2, Check } from "lucide-react";
 import type { Currency } from "@/lib/geo";
 
 const USD_PLANS = [
-  { key: "starter", name: "Starter", price: "$14/mo", posts: 30 },
-  { key: "growth", name: "Growth", price: "$35/mo", posts: 100 },
-  { key: "agency", name: "Agency", price: "$89/mo", posts: 300 },
+  { key: "starter", name: "Starter", price: "$14", posts: 30 },
+  { key: "growth", name: "Growth", price: "$35", posts: 100, featured: true },
+  { key: "agency", name: "Agency", price: "$89", posts: 300 },
 ];
 
 const NGN_PLANS = [
-  { key: "starter", name: "Starter", price: "₦5,500/mo", posts: 30 },
-  { key: "growth", name: "Growth", price: "₦11,000/mo", posts: 100 },
-  { key: "agency", name: "Agency", price: "₦27,500/mo", posts: 300 },
+  { key: "starter", name: "Starter", price: "₦5,500", posts: 30 },
+  { key: "growth", name: "Growth", price: "₦11,000", posts: 100, featured: true },
+  { key: "agency", name: "Agency", price: "₦27,500", posts: 300 },
 ];
 
 interface Profile {
@@ -20,7 +21,7 @@ interface Profile {
   monthly_post_quota: number;
   posts_used_this_cycle: number;
   x_username: string | null;
-  paystack_subscription_code: string | null;
+  has_subscription: boolean;
 }
 
 export default function SettingsPage() {
@@ -32,6 +33,7 @@ export default function SettingsPage() {
   const [regionLoading, setRegionLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [confirmText, setConfirmText] = useState("");
 
   // Amnesia (user-voice memory) connection
   const [amnesiaConnected, setAmnesiaConnected] = useState(false);
@@ -84,7 +86,6 @@ export default function SettingsPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Auto-detect region and pre-select currency
   useEffect(() => {
     fetch("/api/detect-region")
       .then((r) => r.json())
@@ -186,9 +187,7 @@ export default function SettingsPage() {
     if (!confirm("Are you absolutely sure you want to permanently delete your account? This is irreversible.")) return;
 
     try {
-      const res = await fetch("/api/user/delete", {
-        method: "DELETE",
-      });
+      const res = await fetch("/api/user/delete", { method: "DELETE" });
       if (res.ok) {
         await signOut({ callbackUrl: "/" });
       } else {
@@ -220,277 +219,189 @@ export default function SettingsPage() {
     }
   }
 
+  const [subBusy, setSubBusy] = useState<"cancel" | "manage" | null>(null);
+
+  async function handleCancelSubscription() {
+    if (!confirm("Cancel your subscription? You'll be moved to the Free plan right away.")) return;
+    setSubBusy("cancel");
+    try {
+      const res = await fetch("/api/billing/cancel", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage({ type: "error", text: data.error ?? "Could not cancel subscription." });
+      } else {
+        setMessage({ type: "success", text: "Subscription cancelled. You're now on the Free plan." });
+        await fetchData();
+      }
+    } catch {
+      setMessage({ type: "error", text: "Network error. Please try again." });
+    } finally {
+      setSubBusy(null);
+    }
+  }
+
+  async function handleManageSubscription() {
+    setSubBusy("manage");
+    try {
+      const res = await fetch("/api/billing/manage", { method: "POST" });
+      const data = await res.json();
+      if (data.link) {
+        window.location.href = data.link;
+        return;
+      }
+      setMessage({ type: "error", text: data.error ?? "Could not open billing portal." });
+    } catch {
+      setMessage({ type: "error", text: "Network error. Please try again." });
+    }
+    setSubBusy(null);
+  }
+
   const plans = currency === "usd" ? USD_PLANS : NGN_PLANS;
   const currentPlan = profile?.plan ?? "free";
 
   if (loading) {
     return (
-      <div style={{ padding: "40px 16px" }}>
-        {[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: 80, borderRadius: 12, marginBottom: 16 }} />)}
+      <div className="mx-auto max-w-3xl space-y-4">
+        {[...Array(3)].map((_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-muted" />)}
       </div>
     );
   }
 
+  const memoryItems = amnesiaProfile ? [...amnesiaProfile.facts, ...amnesiaProfile.preferences] : [];
+
   return (
-    <div className="responsive-padding" style={{ maxWidth: 680, margin: "0 auto" }}>
-      <div style={{ marginBottom: 32 }}>
-        <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
-          ⚙️ Settings
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>Manage your account and billing.</p>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <h1 className="text-3xl font-bold">Settings</h1>
 
       {message && (
-        <div style={{
-          padding: "14px 18px", borderRadius: 12, marginBottom: 20,
-          background: message.type === "success" ? "rgba(74,222,128,0.1)" : "rgba(239,68,68,0.1)",
-          border: `1px solid ${message.type === "success" ? "rgba(74,222,128,0.2)" : "rgba(239,68,68,0.2)"}`,
-          color: message.type === "success" ? "#4ADE80" : "#F87171",
-          fontSize: "0.875rem",
-        }}>
+        <div className={`rounded-lg px-4 py-3 text-sm ${message.type === "success" ? "bg-success/15 text-success" : "border border-destructive/30 bg-destructive/10 text-destructive"}`}>
           {message.text}
         </div>
       )}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <section className="panel p-6">
+        <h2 className="mb-4 text-lg font-semibold">Account</h2>
+        <dl className="grid gap-4 sm:grid-cols-4">
+          {[
+            ["Email", email],
+            ["Plan", <span key="p" className="capitalize">{currentPlan}</span>],
+            ["X account", profile?.x_username ? `@${profile.x_username}` : "Not linked"],
+            ["Posts used", `${profile?.posts_used_this_cycle ?? 0} / ${profile?.monthly_post_quota ?? 10}`],
+          ].map(([k, v]) => (
+            <div key={k as string}>
+              <dt className="text-xs text-muted-foreground">{k}</dt>
+              <dd className="truncate font-semibold">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
 
-        {/* Account info */}
-        <div className="card responsive-card">
-          <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 20 }}>Account</h2>
-          <div className="form-group" style={{ marginBottom: 16 }}>
-            <label className="label">Email</label>
-            <input className="input" value={email} disabled style={{ opacity: 0.6, cursor: "not-allowed" }} />
+      <section className="panel p-6">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="mb-1 flex items-center gap-2 text-lg font-semibold"><Brain className="size-5 text-primary" />Amnesia voice memory</h2>
+            <p className="mb-4 text-sm text-muted-foreground">Ground your posts in your real writing voice instead of generic AI phrasing.</p>
           </div>
-          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ minWidth: 120 }}>
-              <div className="label">Current Plan</div>
-              <span className={`badge badge-${currentPlan}`} style={{ textTransform: "capitalize" }}>
-                {currentPlan}
-              </span>
-            </div>
-            <div style={{ minWidth: 120 }}>
-              <div className="label">X Account</div>
-              <span style={{ fontSize: "0.875rem", color: profile?.x_username ? "#4ADE80" : "var(--text-muted)", wordBreak: "break-all" }}>
-                {profile?.x_username ? `@${profile.x_username}` : "Not connected"}
-              </span>
-            </div>
-            <div style={{ minWidth: 120 }}>
-              <div className="label">Posts this cycle</div>
-              <span style={{ fontSize: "0.875rem" }}>
-                {profile?.posts_used_this_cycle ?? 0} / {profile?.monthly_post_quota ?? 10}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Amnesia connection */}
-        <div className="card responsive-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16, flexWrap: "wrap", gap: 8 }}>
-            <div>
-              <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>🧠 Connect Amnesia</h2>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
-                Ground your posts in your real writing voice instead of generic AI phrasing.
-              </p>
-            </div>
-            {!amnesiaLoading && (
-              <span
-                style={{
-                  fontSize: "0.72rem",
-                  fontWeight: 600,
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  color: amnesiaConnected ? "#4ADE80" : "var(--text-muted)",
-                  background: amnesiaConnected ? "rgba(74,222,128,0.1)" : "var(--bg-elevated)",
-                  border: `1px solid ${amnesiaConnected ? "rgba(74,222,128,0.2)" : "var(--bg-border)"}`,
-                }}
-              >
-                {amnesiaConnected ? "Connected" : "Not connected"}
-              </span>
-            )}
-          </div>
-
-          {amnesiaLoading ? (
-            <div className="skeleton" style={{ height: 40, borderRadius: 10 }} />
-          ) : !amnesiaConnected ? (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                type="password"
-                className="input"
-                placeholder="Paste your Amnesia API key (ak_...)"
-                value={amnesiaKeyInput}
-                onChange={(e) => setAmnesiaKeyInput(e.target.value)}
-                style={{ flex: 1, minWidth: 220 }}
-              />
-              <button
-                onClick={handleConnectAmnesia}
-                className="btn-primary"
-                disabled={amnesiaConnecting || !amnesiaKeyInput.trim()}
-                style={{ flexShrink: 0 }}
-              >
-                {amnesiaConnecting ? <span className="spinner" /> : "Connect"}
-              </button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {(amnesiaEmail || amnesiaKeyPrefix) && (
-                <div
-                  style={{
-                    fontSize: "0.78rem",
-                    color: "var(--text-secondary)",
-                    padding: "8px 12px",
-                    borderRadius: 8,
-                    background: "var(--bg-elevated)",
-                    border: "1px solid var(--bg-border)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: 8,
-                  }}
-                >
-                  <span>
-                    Linked account: <strong style={{ color: "var(--text-primary)" }}>{amnesiaEmail ?? "Amnesia user"}</strong>
-                  </span>
-                  {amnesiaKeyPrefix && (
-                    <span style={{ color: "var(--text-muted)", fontFamily: "monospace" }}>
-                      Key: ak_••••{amnesiaKeyPrefix}
-                    </span>
-                  )}
-                </div>
-              )}
-              {amnesiaProfile && (amnesiaProfile.facts.length > 0 || amnesiaProfile.preferences.length > 0) && (
-                <div
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: 8,
-                    background: "rgba(255,107,43,0.04)",
-                    border: "1px solid rgba(255,107,43,0.18)",
-                    fontSize: "0.78rem",
-                    color: "var(--text-secondary)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ fontWeight: 600, color: "var(--brand-orange-light)", marginBottom: 2 }}>
-                    Active Memory Profile ({amnesiaProfile.facts.length + amnesiaProfile.preferences.length} item{amnesiaProfile.facts.length + amnesiaProfile.preferences.length === 1 ? "" : "s"})
-                  </div>
-                  {[...amnesiaProfile.facts, ...amnesiaProfile.preferences].slice(0, 6).map((item, idx) => (
-                    <div key={idx} style={{ color: "var(--text-muted)" }}>
-                      • {item.content}
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="form-group">
-                <label className="label">About you (age range, occupation, lifestyle)</label>
-                <textarea
-                  className="textarea"
-                  placeholder="E.g. '19-year-old university student, plays basketball'"
-                  value={amnesiaAbout}
-                  onChange={(e) => setAmnesiaAbout(e.target.value)}
-                  style={{ minHeight: 60 }}
-                />
-              </div>
-              <div className="form-group">
-                <label className="label">Voice &amp; tone (slang, language quirks)</label>
-                <textarea
-                  className="textarea"
-                  placeholder="E.g. 'Nigerian, uses pidgin sometimes, casual and hype tone'"
-                  value={amnesiaVoice}
-                  onChange={(e) => setAmnesiaVoice(e.target.value)}
-                  style={{ minHeight: 60 }}
-                />
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                <button
-                  onClick={handleSaveVoiceNotes}
-                  className="btn-secondary"
-                  disabled={amnesiaSavingVoice || (!amnesiaAbout.trim() && !amnesiaVoice.trim())}
-                >
-                  {amnesiaSavingVoice ? <span className="spinner" /> : "Save to memory"}
-                </button>
-                <button onClick={handleDisconnectAmnesia} className="btn-danger">Disconnect</button>
-              </div>
-            </div>
+          {!amnesiaLoading && (
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${amnesiaConnected ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"}`}>
+              {amnesiaConnected ? "Connected" : "Not connected"}
+            </span>
           )}
         </div>
 
-        {/* Billing / Upgrade */}
-        <div className="card responsive-card">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
+        {amnesiaLoading ? (
+          <div className="h-10 animate-pulse rounded-lg bg-muted" />
+        ) : !amnesiaConnected ? (
+          <div className="flex flex-wrap gap-2">
+            <input type="password" className="field min-w-56 flex-1" placeholder="Paste your Amnesia API key (ak_...)" value={amnesiaKeyInput} onChange={(e) => setAmnesiaKeyInput(e.target.value)} />
+            <button onClick={handleConnectAmnesia} disabled={amnesiaConnecting || !amnesiaKeyInput.trim()} className="btn btn-ink">
+              {amnesiaConnecting ? <Loader2 className="size-4 animate-spin" /> : "Connect"}
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {(amnesiaEmail || amnesiaKeyPrefix) && (
+              <p className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">
+                <span>Linked to <b>{amnesiaEmail ?? "Amnesia user"}</b></span>
+                {amnesiaKeyPrefix && <span className="font-mono text-xs opacity-70">Key: ak_••••{amnesiaKeyPrefix}</span>}
+              </p>
+            )}
+            {memoryItems.length > 0 && (
+              <div className="rounded-lg border p-3 text-sm">
+                <p className="mb-1 font-semibold">Active memory profile ({memoryItems.length} item{memoryItems.length === 1 ? "" : "s"})</p>
+                <ul className="space-y-1 text-muted-foreground">
+                  {memoryItems.slice(0, 6).map((item, idx) => <li key={idx}>• {item.content}</li>)}
+                </ul>
+              </div>
+            )}
             <div>
-              <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 4 }}>Upgrade Plan</h2>
-              {!regionLoading && (
-                <p style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                  📍 {currency === "ngn" ? "Prices in NGN via Paystack" : "Prices in USD via Paystack"}
-                </p>
-              )}
+              <label className="mb-1 block text-sm font-medium">About you <span className="font-normal text-muted-foreground">(age range, occupation, lifestyle)</span></label>
+              <textarea className="field min-h-20" placeholder="e.g. 19-year-old university student, plays basketball" value={amnesiaAbout} onChange={(e) => setAmnesiaAbout(e.target.value)} />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Voice &amp; tone <span className="font-normal text-muted-foreground">(slang, language quirks)</span></label>
+              <textarea className="field min-h-20" placeholder="e.g. Nigerian, uses pidgin sometimes, casual and hype tone" value={amnesiaVoice} onChange={(e) => setAmnesiaVoice(e.target.value)} />
+            </div>
+            <div className="flex flex-wrap justify-between gap-2">
+              <button onClick={handleSaveVoiceNotes} disabled={amnesiaSavingVoice || (!amnesiaAbout.trim() && !amnesiaVoice.trim())} className="btn btn-ghost">
+                {amnesiaSavingVoice ? <Loader2 className="size-4 animate-spin" /> : "Save to memory"}
+              </button>
+              <button onClick={handleDisconnectAmnesia} className="btn btn-ghost text-destructive">Disconnect</button>
             </div>
           </div>
+        )}
+      </section>
 
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {plans.map((plan) => {
-              const isCurrent = plan.key === currentPlan;
-              return (
-                <div
-                  key={plan.key}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "16px 20px",
-                    borderRadius: 12,
-                    border: isCurrent ? "1px solid rgba(255,107,43,0.4)" : "1px solid var(--bg-border)",
-                    background: isCurrent ? "rgba(255,107,43,0.06)" : "var(--bg-elevated)",
-                    flexWrap: "wrap",
-                    gap: 12,
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: "0.9rem", marginBottom: 2 }}>{plan.name}</div>
-                    <div style={{ color: "var(--text-muted)", fontSize: "0.78rem" }}>
-                      {plan.price} · {plan.posts} posts/mo
-                    </div>
-                  </div>
-                  {isCurrent ? (
-                    <span style={{ fontSize: "0.78rem", color: "var(--brand-orange-light)", fontWeight: 600 }}>
-                      ✓ Current Plan
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleCheckout(plan.key)}
-                      className="btn-primary"
-                      disabled={!!checkoutLoading}
-                      style={{ padding: "8px 18px", fontSize: "0.8rem" }}
-                    >
-                      {checkoutLoading === plan.key ? <span className="spinner" /> : "Upgrade"}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
+      {profile?.has_subscription && (
+        <section className="panel p-6">
+          <h2 className="text-lg font-semibold">Subscription</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You&apos;re on the <b className="capitalize text-foreground">{currentPlan}</b> plan, billed monthly through Paystack.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button onClick={handleManageSubscription} disabled={!!subBusy} className="btn btn-ghost">
+              {subBusy === "manage" && <Loader2 className="size-4 animate-spin" />}Update payment method
+            </button>
+            <button onClick={handleCancelSubscription} disabled={!!subBusy} className="btn btn-ghost text-destructive">
+              {subBusy === "cancel" && <Loader2 className="size-4 animate-spin" />}Cancel subscription
+            </button>
           </div>
+        </section>
+      )}
 
-          <p style={{ marginTop: 12, fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            Payments processed securely by Paystack.
-          </p>
+      <section className="panel p-6">
+        <h2 className="text-lg font-semibold">{profile?.has_subscription ? "Change plan" : "Upgrade plan"}</h2>
+        {!regionLoading && <p className="mb-4 text-xs text-muted-foreground">Prices in {currency === "ngn" ? "NGN" : "USD"} via Paystack</p>}
+        <div className="grid gap-3 sm:grid-cols-3">
+          {plans.map((p) => {
+            const isCurrent = p.key === currentPlan;
+            return (
+              <div key={p.key} className={`rounded-xl border p-4 ${isCurrent || p.featured ? "border-primary" : ""}`}>
+                <p className="font-semibold">{p.name}</p>
+                <p className="font-display text-2xl font-bold">{p.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
+                <p className="text-xs text-muted-foreground">{p.posts} posts / month</p>
+                {isCurrent ? (
+                  <button disabled className="btn btn-ghost mt-3 w-full"><Check className="size-4" />Current</button>
+                ) : (
+                  <button onClick={() => handleCheckout(p.key)} disabled={!!checkoutLoading} className="btn btn-loud mt-3 w-full">
+                    {checkoutLoading === p.key ? <Loader2 className="size-4 animate-spin" /> : "Pay with Paystack"}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">Payments processed securely by Paystack.</p>
+      </section>
 
-        {/* Danger zone */}
-        <div
-          className="card responsive-card"
-          style={{ border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.03)" }}
-        >
-          <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 8, color: "#F87171" }}>Danger Zone</h2>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: 16 }}>
-            Deleting your account is permanent and irreversible. All posts and settings will be lost.
-          </p>
-          <button onClick={handleDeleteAccount} className="btn-danger">Delete Account</button>
+      <section className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6">
+        <h2 className="text-lg font-semibold text-destructive">Danger zone</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Deleting your account removes all posts and disconnects X. It is permanent. Type DELETE to confirm.</p>
+        <div className="mt-4 flex gap-2">
+          <input className="field max-w-48" value={confirmText} onChange={(e) => setConfirmText(e.target.value)} />
+          <button disabled={confirmText !== "DELETE"} onClick={handleDeleteAccount} className="btn btn-danger">Delete account</button>
         </div>
-
-      </div>
+      </section>
     </div>
   );
 }

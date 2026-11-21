@@ -15,10 +15,10 @@ export async function GET() {
 
     // 1. Fetch user profile stats
     const users = await query(
-      "SELECT plan, monthly_post_quota, posts_used_this_cycle, x_username FROM public.users WHERE id = $1",
+      "SELECT plan, monthly_post_quota, posts_used_this_cycle, x_username, (paystack_subscription_code IS NOT NULL) AS has_subscription FROM public.users WHERE id = $1",
       [userId]
     );
-    const profile = users[0] ?? { plan: "free", monthly_post_quota: 10, posts_used_this_cycle: 0, x_username: null };
+    const profile = users[0] ?? { plan: "free", monthly_post_quota: 10, posts_used_this_cycle: 0, x_username: null, has_subscription: false };
 
     // 2. Fetch user's posts
     const posts = await query(

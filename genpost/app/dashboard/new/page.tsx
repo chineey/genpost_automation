@@ -2,28 +2,39 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Brain, Loader2, Plus, X, CheckCircle2, TriangleAlert } from "lucide-react";
 import { SUGGESTED_TOPICS, POST_TYPE_LABELS, POST_TYPE_DESCRIPTIONS, PostType } from "@/lib/gemini";
 
 const ALL_POST_TYPES = Object.keys(POST_TYPE_LABELS) as PostType[];
 const COUNT_OPTIONS = [5, 10, 15, 20, 30, 50];
 
+function Step({ n, title, hint, children }: { n: number; title: React.ReactNode; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="panel p-6">
+      <h2 className="flex items-center gap-3 text-lg font-semibold">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-ink text-sm text-ink-foreground">{n}</span>
+        {title}
+      </h2>
+      {hint && <p className="mt-1 mb-4 ml-10 text-sm text-muted-foreground">{hint}</p>}
+      {!hint && <div className="mb-4" />}
+      {children}
+    </div>
+  );
+}
+
 export default function NewPostPage() {
   const router = useRouter();
 
-  // Topic state
   const [customTopic, setCustomTopic] = useState("");
   const [selectedTopics, setSelectedTopics] = useState<string[]>([]);
 
-  // Post type state
   const [selectedTypes, setSelectedTypes] = useState<PostType[]>(["information", "engagement_bait"]);
   const [customTypes, setCustomTypes] = useState<string[]>([]);
   const [customTypeInput, setCustomTypeInput] = useState("");
 
-  // Count + context
   const [count, setCount] = useState(10);
   const [additionalContext, setAdditionalContext] = useState("");
 
-  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [generated, setGenerated] = useState(0);
@@ -35,20 +46,12 @@ export default function NewPostPage() {
   useEffect(() => {
     fetch("/api/amnesia/connect")
       .then((r) => r.json())
-      .then((data) =>
-        setAmnesiaStatus({
-          loading: false,
-          connected: !!data.connected,
-          email: data.email ?? null,
-        })
-      )
+      .then((data) => setAmnesiaStatus({ loading: false, connected: !!data.connected, email: data.email ?? null }))
       .catch(() => setAmnesiaStatus({ loading: false, connected: false }));
   }, []);
 
   function toggleTopic(topic: string) {
-    setSelectedTopics((prev) =>
-      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
-    );
+    setSelectedTopics((prev) => (prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]));
   }
 
   function addCustomTopic() {
@@ -60,16 +63,14 @@ export default function NewPostPage() {
   }
 
   function toggleType(type: PostType) {
-    setSelectedTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
-    );
+    setSelectedTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
   }
 
   function addCustomType() {
     const t = customTypeInput.trim();
     if (t && !customTypes.includes(t) && !ALL_POST_TYPES.includes(t as any)) {
       setCustomTypes((prev) => [...prev, t]);
-      setSelectedTypes((prev) => [...prev, t]);
+      setSelectedTypes((prev) => [...prev, t as PostType]);
       setCustomTypeInput("");
     }
   }
@@ -100,11 +101,7 @@ export default function NewPostPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        if (data.error === "quota_exceeded") {
-          setError(data.message);
-        } else {
-          setError(data.error ?? "Generation failed. Please try again.");
-        }
+        setError(data.error === "quota_exceeded" ? data.message : (data.error ?? "Generation failed. Please try again."));
         setLoading(false);
         return;
       }
@@ -119,322 +116,124 @@ export default function NewPostPage() {
 
   if (generated > 0) {
     return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "60vh",
-          gap: 16,
-          padding: "40px 16px",
-        }}
-      >
-        <div style={{ fontSize: 56 }}>✨</div>
-        <h2 className="font-display" style={{ fontSize: "1.6rem", fontWeight: 700 }}>
-          {generated} posts generated!
-        </h2>
-        <p style={{ color: "var(--text-secondary)" }}>Redirecting to your dashboard…</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
+        <CheckCircle2 className="size-14 text-success" />
+        <h2 className="text-2xl font-bold">{generated} posts generated!</h2>
+        <p className="text-muted-foreground">Redirecting to your dashboard…</p>
       </div>
     );
   }
 
+  const customSelectedTopics = selectedTopics.filter((t) => !SUGGESTED_TOPICS.includes(t));
+
   return (
-    <div className="responsive-padding" style={{ maxWidth: 760, margin: "0 auto" }}>
-      <div style={{ marginBottom: 32, display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+    <div className="mx-auto max-w-3xl">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display" style={{ fontSize: "1.75rem", fontWeight: 700, marginBottom: 6 }}>
-            ✨ Generate Posts
-          </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-            Tell Genpost what to write about. Your drafts will appear on the dashboard for review.
-          </p>
+          <h1 className="text-3xl font-bold">Generate posts</h1>
+          <p className="text-muted-foreground">Drafts land in your post list for review.</p>
         </div>
         {!amnesiaStatus.loading && (
-          <Link
-            href="/dashboard/settings"
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              padding: "6px 12px",
-              borderRadius: 999,
-              textDecoration: "none",
-              color: amnesiaStatus.connected ? "#4ADE80" : "var(--text-muted)",
-              background: amnesiaStatus.connected ? "rgba(74,222,128,0.1)" : "var(--bg-elevated)",
-              border: `1px solid ${amnesiaStatus.connected ? "rgba(74,222,128,0.25)" : "var(--bg-border)"}`,
-            }}
-          >
-            {amnesiaStatus.connected
-              ? `🧠 Amnesia Active${amnesiaStatus.email ? ` (${amnesiaStatus.email})` : ""}`
-              : "🧠 Connect Amnesia in Settings →"}
+          <Link href="/dashboard/settings" className="chip">
+            <Brain className="size-4 text-primary" />
+            {amnesiaStatus.connected ? (
+              <>Amnesia: <b>connected</b>{amnesiaStatus.email ? ` (${amnesiaStatus.email})` : ""}<span className="size-2 rounded-full bg-success" /></>
+            ) : (
+              <>Connect Amnesia in Settings →</>
+            )}
           </Link>
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-
-        {/* ── Step 1: Topics ── */}
-        <div className="card responsive-card">
-          <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 6 }}>
-            1. What topics should your posts cover?
-          </h2>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: 18 }}>
-            Select from suggestions or add your own. Leave blank for general content.
-          </p>
-
-          {/* Suggested topics */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+      <div className="mt-8 space-y-4">
+        <Step n={1} title="Topics" hint="Select from suggestions or add your own. Leave blank for general content.">
+          <div className="flex flex-wrap gap-2">
             {SUGGESTED_TOPICS.map((t) => (
-              <button
-                key={t}
-                onClick={() => toggleTopic(t)}
-                className={`chip ${selectedTopics.includes(t) ? "active" : ""}`}
-              >
+              <button key={t} onClick={() => toggleTopic(t)} className={`chip ${selectedTopics.includes(t) ? "chip-on" : ""}`}>{t}</button>
+            ))}
+            {customSelectedTopics.map((t) => (
+              <span key={t} className="chip chip-on cursor-default">
                 {t}
-              </button>
+                <button onClick={() => toggleTopic(t)} aria-label={`Remove ${t}`}><X className="size-3" /></button>
+              </span>
             ))}
+            <form onSubmit={(e) => { e.preventDefault(); addCustomTopic(); }} className="flex items-center gap-1 rounded-full border border-dashed px-2">
+              <input id="custom-topic" value={customTopic} onChange={(e) => setCustomTopic(e.target.value)} placeholder="Custom topic" className="w-32 bg-transparent py-1 text-sm outline-none" />
+              <button type="submit" aria-label="Add topic"><Plus className="size-4 text-primary" /></button>
+            </form>
           </div>
+          {selectedTopics.length > 0 && <p className="mt-3 text-xs text-primary">{selectedTopics.length} topic{selectedTopics.length > 1 ? "s" : ""} selected</p>}
+        </Step>
 
-          {/* Custom topic input */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              id="custom-topic"
-              type="text"
-              className="input"
-              placeholder="Add a custom topic (e.g. Web3, Parenting, Fashion…)"
-              value={customTopic}
-              onChange={(e) => setCustomTopic(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addCustomTopic()}
-              style={{ flex: 1 }}
-            />
-            <button onClick={addCustomTopic} className="btn-secondary" style={{ flexShrink: 0 }}>
-              + Add
-            </button>
-          </div>
-
-          {/* Selected custom topics */}
-          {selectedTopics.filter((t) => !SUGGESTED_TOPICS.includes(t)).length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 12 }}>
-              {selectedTopics
-                .filter((t) => !SUGGESTED_TOPICS.includes(t))
-                .map((t) => (
-                  <span
-                    key={t}
-                    className="chip active"
-                    style={{ cursor: "default" }}
-                  >
-                    {t}
-                    <button
-                      onClick={() => toggleTopic(t)}
-                      style={{ background: "none", border: "none", cursor: "pointer", color: "inherit", padding: 0, lineHeight: 1 }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-            </div>
-          )}
-
-          {selectedTopics.length > 0 && (
-            <p style={{ marginTop: 12, fontSize: "0.78rem", color: "var(--brand-orange-light)" }}>
-              {selectedTopics.length} topic{selectedTopics.length > 1 ? "s" : ""} selected
-            </p>
-          )}
-        </div>
-
-        {/* ── Step 2: Post types ── */}
-        <div className="card responsive-card">
-          <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 6 }}>
-            2. What types of posts do you want?
-          </h2>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: 18 }}>
-            Select one or more. Genpost distributes them evenly across your posts.
-          </p>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {ALL_POST_TYPES.map((type) => (
-              <label
-                key={type}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 14,
-                  padding: "14px 18px",
-                  borderRadius: 12,
-                  cursor: "pointer",
-                  border: selectedTypes.includes(type)
-                    ? "1px solid rgba(255,107,43,0.4)"
-                    : "1px solid var(--bg-border)",
-                  background: selectedTypes.includes(type)
-                    ? "rgba(255,107,43,0.06)"
-                    : "var(--bg-elevated)",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedTypes.includes(type)}
-                  onChange={() => toggleType(type)}
-                  style={{ marginTop: 2, accentColor: "var(--brand-orange)", width: 16, height: 16, flexShrink: 0 }}
-                />
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: 2 }}>
-                    {POST_TYPE_LABELS[type]}
-                  </div>
-                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                    {POST_TYPE_DESCRIPTIONS[type]}
-                  </div>
-                </div>
-              </label>
-            ))}
-
-            {/* Custom Post Types */}
-            {customTypes.map((type) => (
-              <div
-                key={type}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "14px 18px",
-                  borderRadius: 12,
-                  border: selectedTypes.includes(type)
-                    ? "1px solid rgba(255,107,43,0.4)"
-                    : "1px solid var(--bg-border)",
-                  background: selectedTypes.includes(type)
-                    ? "rgba(255,107,43,0.06)"
-                    : "var(--bg-elevated)",
-                  transition: "all 0.15s ease",
-                }}
-              >
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: 14,
-                    cursor: "pointer",
-                    flex: 1,
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTypes.includes(type)}
-                    onChange={() => toggleType(type)}
-                    style={{ marginTop: 2, accentColor: "var(--brand-orange)", width: 16, height: 16, flexShrink: 0 }}
-                  />
+        <Step n={2} title="Post types" hint="Select one or more. Genpost distributes them evenly across your posts.">
+          <div className="space-y-2">
+            {ALL_POST_TYPES.map((type) => {
+              const on = selectedTypes.includes(type);
+              return (
+                <label key={type} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${on ? "border-primary bg-accent/50" : "hover:bg-muted"}`}>
+                  <input type="checkbox" checked={on} onChange={() => toggleType(type)} className="mt-1 size-4 accent-primary" />
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: "0.875rem", marginBottom: 2 }}>
-                      {type}
-                    </div>
-                    <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      Custom post type
-                    </div>
+                    <div className="text-sm font-semibold">{POST_TYPE_LABELS[type]}</div>
+                    <div className="text-xs text-muted-foreground">{POST_TYPE_DESCRIPTIONS[type]}</div>
                   </div>
                 </label>
-                <button
-                  onClick={() => removeCustomType(type)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#F87171",
-                    cursor: "pointer",
-                    fontSize: "0.85rem",
-                    padding: "4px 8px",
-                  }}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-
-            {/* Custom post type input */}
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+              );
+            })}
+            {customTypes.map((type) => {
+              const on = selectedTypes.includes(type as PostType);
+              return (
+                <div key={type} className={`flex items-center justify-between gap-3 rounded-xl border p-3 ${on ? "border-primary bg-accent/50" : ""}`}>
+                  <label className="flex flex-1 cursor-pointer items-start gap-3">
+                    <input type="checkbox" checked={on} onChange={() => toggleType(type as PostType)} className="mt-1 size-4 accent-primary" />
+                    <div>
+                      <div className="text-sm font-semibold">{type}</div>
+                      <div className="text-xs text-muted-foreground">Custom post type</div>
+                    </div>
+                  </label>
+                  <button onClick={() => removeCustomType(type)} className="text-sm text-destructive">Remove</button>
+                </div>
+              );
+            })}
+            <div className="flex gap-2 pt-2">
               <input
                 id="custom-type-input"
-                type="text"
-                className="input"
-                placeholder="Add a custom post type (e.g. Code snippet, Tutorial, Quote…)"
+                className="field"
+                placeholder="Add a custom post type (e.g. Tutorial, Quote…)"
                 value={customTypeInput}
                 onChange={(e) => setCustomTypeInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addCustomType()}
-                style={{ flex: 1 }}
               />
-              <button onClick={addCustomType} className="btn-secondary" style={{ flexShrink: 0 }}>
-                + Add
-              </button>
+              <button onClick={addCustomType} className="btn btn-ghost shrink-0"><Plus className="size-4" />Add</button>
             </div>
           </div>
-        </div>
+        </Step>
 
-        {/* ── Step 3: Count ── */}
-        <div className="card responsive-card">
-          <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 18 }}>
-            3. How many posts to generate?
-          </h2>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <Step n={3} title={<>How many? <span className="ml-auto font-display text-3xl text-primary">{count}</span></>}>
+          <div className="flex flex-wrap gap-2">
             {COUNT_OPTIONS.map((n) => (
-              <button
-                key={n}
-                onClick={() => setCount(n)}
-                className={`chip ${count === n ? "active" : ""}`}
-                style={{ minWidth: 50, justifyContent: "center" }}
-              >
-                {n}
-              </button>
+              <button key={n} onClick={() => setCount(n)} className={`chip min-w-12 justify-center ${count === n ? "chip-on" : ""}`}>{n}</button>
             ))}
           </div>
-        </div>
+        </Step>
 
-        {/* ── Step 4: Additional context (optional) ── */}
-        <div className="card responsive-card">
-          <h2 style={{ fontWeight: 600, fontSize: "1rem", marginBottom: 6 }}>
-            4. Any extra context? <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(optional)</span>
-          </h2>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginBottom: 14 }}>
-            Describe your brand voice, target audience, or any specific angles to include.
-          </p>
+        <Step n={4} title={<>Extra context <span className="text-sm font-normal text-muted-foreground">optional</span></>} hint="Describe your brand voice, target audience, or specific angles to include.">
           <textarea
             id="additional-context"
-            className="textarea"
-            placeholder="E.g. 'I'm a senior backend engineer. Keep tone conversational and slightly opinionated. Audience is junior devs.'"
+            className="field min-h-24"
             value={additionalContext}
             onChange={(e) => setAdditionalContext(e.target.value)}
-            style={{ minHeight: 100 }}
+            placeholder="e.g. I'm a senior backend engineer. Keep the tone conversational and slightly opinionated."
           />
-        </div>
+        </Step>
 
-        {/* ── Error ── */}
         {error && (
-          <div
-            style={{
-              padding: "14px 18px",
-              borderRadius: 10,
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.2)",
-              color: "#F87171",
-              fontSize: "0.875rem",
-            }}
-          >
-            {error}
+          <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0" />{error}
           </div>
         )}
 
-        {/* ── Generate button ── */}
-        <button
-          id="generate-posts-btn"
-          onClick={handleGenerate}
-          className="btn-primary"
-          disabled={loading}
-          style={{ padding: "16px 32px", fontSize: "1rem", justifyContent: "center" }}
-        >
-          {loading ? (
-            <>
-              <span className="spinner" />
-              Generating {count} posts…
-            </>
-          ) : (
-            `✨ Generate ${count} Posts`
-          )}
+        <button id="generate-posts-btn" disabled={loading} onClick={handleGenerate} className="btn btn-loud w-full py-4 text-base">
+          {loading ? <><Loader2 className="size-5 animate-spin" />Generating {count} drafts…</> : `Generate ${count} drafts`}
         </button>
       </div>
     </div>
