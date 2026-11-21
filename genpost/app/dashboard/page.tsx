@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { ExternalLink, Trash2, Pencil, X, Check, Undo2, RotateCcw, Loader2, ImagePlus, Sparkles, TriangleAlert, CalendarClock } from "lucide-react";
+import { ExternalLink, Trash2, Pencil, X, Check, Undo2, RotateCcw, Loader2, ImagePlus, Feather, TriangleAlert, CalendarClock } from "lucide-react";
 
 type PostStatus = "draft" | "approved" | "posted" | "failed";
 
@@ -265,6 +265,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deletingSelected, setDeletingSelected] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -308,7 +310,43 @@ export default function DashboardPage() {
   async function deletePost(postId: string) {
     if (!confirm("Delete this post?")) return;
     await fetch(`/api/posts?id=${postId}`, { method: "DELETE" });
+    setSelectedIds((prev) => prev.filter((id) => id !== postId));
     await fetchData();
+  }
+
+  function toggleSelect(postId: string) {
+    setSelectedIds((prev) =>
+      prev.includes(postId) ? prev.filter((id) => id !== postId) : [...prev, postId]
+    );
+  }
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((p) => selectedIds.includes(p.id));
+
+  function toggleSelectAll() {
+    if (allFilteredSelected) {
+      const filteredSet = new Set(filtered.map((p) => p.id));
+      setSelectedIds((prev) => prev.filter((id) => !filteredSet.has(id)));
+    } else {
+      setSelectedIds((prev) => [...new Set([...prev, ...filtered.map((p) => p.id)])]);
+    }
+  }
+
+  async function deleteSelected() {
+    if (selectedIds.length === 0) return;
+    const count = selectedIds.length;
+    if (!confirm(`Delete ${count} selected ${count === 1 ? "post" : "posts"}?`)) return;
+    setDeletingSelected(true);
+    try {
+      await fetch("/api/posts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+      setSelectedIds([]);
+      await fetchData();
+    } finally {
+      setDeletingSelected(false);
+    }
   }
 
   const usedPercent = profile ? Math.min(100, (profile.posts_used_this_cycle / profile.monthly_post_quota) * 100) : 0;
@@ -334,7 +372,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex gap-2">
           {!profile?.x_username && <Link href="/dashboard/connect-x" className="btn btn-ghost">Connect X</Link>}
-          <Link href="/dashboard/new" className="btn btn-loud"><Sparkles className="size-4" />Generate posts</Link>
+          <Link href="/dashboard/new" className="btn btn-loud"><Feather className="size-4" />Generate posts</Link>
         </div>
       </div>
 
@@ -355,26 +393,72 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((f) => {
-          const count = f.key === "all" ? posts.length : posts.filter((p) => p.status === f.key).length;
-          return (
-            <button key={f.key} onClick={() => setFilter(f.key)} className={`chip ${filter === f.key ? "chip-on" : ""}`}>
-              {f.label} <span className="opacity-60">{count}</span>
-            </button>
-          );
-        })}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((f) => {
+            const count = f.key === "all" ? posts.length : posts.filter((p) => p.status === f.key).length;
+            return (
+              <button key={f.key} onClick={() => setFilter(f.key)} className={`chip ${filter === f.key ? "chip-on" : ""}`}>
+                {f.label} <span className="opacity-60">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground select-none">
+              <input
+                type="checkbox"
+                checked={allFilteredSelected}
+                onChange={toggleSelectAll}
+                className="size-4 accent-primary"
+              />
+              Select all
+            </label>
+            {selectedIds.length > 0 && (
+              <>
+                <button
+                  onClick={() => setSelectedIds([])}
+                  disabled={deletingSelected}
+                  className="btn btn-ghost px-2.5 py-1 text-xs"
+                >
+                  Clear ({selectedIds.length})
+                </button>
+                <button
+                  onClick={deleteSelected}
+                  disabled={deletingSelected}
+                  className="btn bg-destructive px-3 py-1.5 text-xs text-destructive-foreground"
+                >
+                  {deletingSelected ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
+                  Delete selected ({selectedIds.length})
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 space-y-3">
         {filtered.length === 0 && (
           <div className="panel p-10 text-center text-muted-foreground">
             <p>No {filter !== "all" ? filter : ""} posts yet.</p>
-            <Link href="/dashboard/new" className="btn btn-loud mt-4"><Sparkles className="size-4" />Generate your first posts</Link>
+            <Link href="/dashboard/new" className="btn btn-loud mt-4"><Feather className="size-4" />Generate your first posts</Link>
           </div>
         )}
-        {filtered.map((post) => (
-          <div key={post.id} className="panel flex flex-col gap-4 p-5 sm:flex-row">
+        {filtered.map((post) => {
+          const isSelected = selectedIds.includes(post.id);
+          return (
+          <div key={post.id} className={`panel flex flex-col gap-4 p-5 sm:flex-row ${isSelected ? "border-primary bg-accent/20" : ""}`}>
+            <div className="flex items-start pt-0.5">
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleSelect(post.id)}
+                aria-label={`Select post ${post.id}`}
+                className="size-4 cursor-pointer accent-primary"
+              />
+            </div>
             <div className="min-w-0 flex-1">
               <div className="mb-2 flex flex-wrap items-center gap-3 text-xs">
                 <StatusBadge status={post.status} />
@@ -429,7 +513,8 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {editingPost && (

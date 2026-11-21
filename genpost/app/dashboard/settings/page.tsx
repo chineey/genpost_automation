@@ -356,7 +356,7 @@ export default function SettingsPage() {
         <section className="panel p-6">
           <h2 className="text-lg font-semibold">Subscription</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            You&apos;re on the <b className="capitalize text-foreground">{currentPlan}</b> plan, billed monthly through Paystack.
+            You&apos;re on the <b className="capitalize text-foreground">{currentPlan}</b> plan via Paystack.
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={handleManageSubscription} disabled={!!subBusy} className="btn btn-ghost">
@@ -378,8 +378,8 @@ export default function SettingsPage() {
             return (
               <div key={p.key} className={`rounded-xl border p-4 ${isCurrent || p.featured ? "border-primary" : ""}`}>
                 <p className="font-semibold">{p.name}</p>
-                <p className="font-display text-2xl font-bold">{p.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-                <p className="text-xs text-muted-foreground">{p.posts} posts / month</p>
+                <p className="font-display text-2xl font-bold">{p.price}</p>
+                <p className="text-xs text-muted-foreground">{p.posts} posts</p>
                 {isCurrent ? (
                   <button disabled className="btn btn-ghost mt-3 w-full"><Check className="size-4" />Current</button>
                 ) : (

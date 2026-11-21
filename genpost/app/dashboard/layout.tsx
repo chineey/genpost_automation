@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutList, Sparkles, Link2, Settings, LogOut } from "lucide-react";
+import { LayoutList, Feather, Link2, Settings, LogOut } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
 const NAV = [
   { href: "/dashboard", label: "Posts", icon: LayoutList },
-  { href: "/dashboard/new", label: "Generate", icon: Sparkles },
+  { href: "/dashboard/new", label: "Generate", icon: Feather },
   { href: "/dashboard/connect-x", label: "Connect X", icon: Link2 },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];

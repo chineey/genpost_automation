@@ -2,12 +2,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { CalendarClock, Sparkles, Brain, Image as ImageIcon, ShieldCheck, BarChart3, Check } from "lucide-react";
+import { CalendarClock, Feather, Brain, Image as ImageIcon, ShieldCheck, BarChart3, Check } from "lucide-react";
 import type { Currency } from "@/lib/geo";
 import { PublicNav, PublicFooter } from "@/components/PublicNav";
 
 const FEATURES = [
-  { i: Sparkles, t: "AI draft generation", d: "Pick topics and formats, get 5–50 ready-to-post drafts in seconds, powered by Gemini." },
+  { i: Feather, t: "AI draft generation", d: "Pick topics and formats, get 5–50 ready-to-post drafts in seconds, powered by Gemini." },
   { i: Brain, t: "Amnesia voice memory", d: "Your tone, opinions and phrases — remembered across every batch." },
   { i: CalendarClock, t: "Set-and-forget scheduling", d: "Approve, pick a time, and GenPost posts to X for you, even while you sleep." },
   { i: ImageIcon, t: "Media ready", d: "Attach up to 4 images or a single video to any post." },
@@ -18,10 +18,10 @@ const FEATURES = [
 const POST_TYPES = ["Question", "Hot Take", "Info", "Joke", "News", "Explanation"];
 
 const PLANS = [
-  { name: "Free", usd: "$0", ngn: "₦0", period: "", posts: "10 posts", features: ["AI draft generation", "1 X account", "Scheduling", "Images & video"], cta: "Start free", href: "/signup" },
-  { name: "Starter", usd: "$14", ngn: "₦5,500", period: "/mo", posts: "30 posts/mo", features: ["Everything in Free", "30 posts/month"], cta: "Get Starter", href: "/signup?plan=starter" },
-  { name: "Growth", usd: "$35", ngn: "₦11,000", period: "/mo", posts: "100 posts/mo", features: ["Everything in Starter", "100 posts/month"], cta: "Go Growth", href: "/signup?plan=growth", featured: true },
-  { name: "Agency", usd: "$89", ngn: "₦27,500", period: "/mo", posts: "300 posts/mo", features: ["Everything in Growth", "300 posts/month", "Cancel anytime"], cta: "Go Agency", href: "/signup?plan=agency" },
+  { name: "Free", usd: "$0", ngn: "₦0", posts: "10 posts", features: ["AI draft generation", "1 X account", "Scheduling", "Images & video"], cta: "Start free", href: "/signup" },
+  { name: "Starter", usd: "$14", ngn: "₦5,500", posts: "30 posts", features: ["Everything in Free", "30 posts"], cta: "Get Starter", href: "/signup?plan=starter" },
+  { name: "Growth", usd: "$35", ngn: "₦11,000", posts: "100 posts", features: ["Everything in Starter", "100 posts"], cta: "Go Growth", href: "/signup?plan=growth", featured: true },
+  { name: "Agency", usd: "$89", ngn: "₦27,500", posts: "300 posts", features: ["Everything in Growth", "300 posts", "Cancel anytime"], cta: "Go Agency", href: "/signup?plan=agency" },
 ];
 
 export default function LandingPage() {
@@ -83,19 +83,18 @@ export default function LandingPage() {
       <section id="pricing" className="bg-ink py-20 text-ink-foreground">
         <div className="mx-auto max-w-6xl px-6">
           <h2 className="text-4xl font-bold">Simple pricing</h2>
-          <p className="mt-2 opacity-70">Prices shown in {currency === "ngn" ? "Naira (NGN)" : "US Dollars (USD)"}, billed monthly via Paystack.</p>
           <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {PLANS.map((p) => (
               <div key={p.name} className={`flex flex-col rounded-2xl border p-7 ${p.featured ? "border-primary bg-primary text-primary-foreground" : "border-sidebar-border bg-sidebar-accent"}`}>
                 <h3 className="text-lg font-semibold">{p.name}</h3>
-                <div className="mt-3 font-display text-4xl font-bold">{currency === "ngn" ? p.ngn : p.usd}<span className="text-base font-normal opacity-70"> {p.period}</span></div>
+                <div className="mt-3 font-display text-4xl font-bold">{currency === "ngn" ? p.ngn : p.usd}</div>
                 <p className="mt-1 text-sm opacity-70">{p.posts}</p>
                 <ul className="mt-6 flex-1 space-y-2 text-sm">{p.features.map((x) => <li key={x} className="flex gap-2"><Check className="size-4 shrink-0" />{x}</li>)}</ul>
                 <Link href={session ? "/dashboard/settings" : p.href} className={`btn mt-8 w-full ${p.featured ? "btn-ink" : "btn-loud"}`}>{p.cta}</Link>
               </div>
             ))}
           </div>
-          {currency === "ngn" && <p className="mt-6 text-center text-xs opacity-60">NGN prices are PPP-adjusted. Paystack supports Verve, Visa, Mastercard and bank transfer.</p>}
+          {currency === "ngn" && <p className="mt-6 text-center text-xs opacity-60">Supports Verve, Visa, Mastercard and bank transfer.</p>}
         </div>
       </section>
 

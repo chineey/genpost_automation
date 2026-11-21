@@ -186,7 +186,7 @@ export async function PATCH(request: Request) {
   }
 }
 
-// DELETE /api/posts — Delete a post
+// DELETE /api/posts — Delete one post (?id=...) or multiple posts ({ ids: [...] })
 export async function DELETE(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -197,24 +197,38 @@ export async function DELETE(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
+    const queryId = searchParams.get("id");
+    let targetIds: string[] = queryId ? [queryId] : [];
 
-    if (!id) {
-      return NextResponse.json({ error: "Missing post ID" }, { status: 400 });
+    if (targetIds.length === 0) {
+      try {
+        const body = await request.json();
+        if (Array.isArray(body?.ids)) {
+          targetIds = body.ids.filter((v: unknown): v is string => typeof v === "string" && v.length > 0);
+        }
+      } catch {
+        // No JSON body provided
+      }
     }
 
-    // Ensure the post belongs to the logged-in user
-    const posts = await query("SELECT id FROM public.posts WHERE id = $1 AND user_id = $2", [id, userId]);
+    if (targetIds.length === 0) {
+      return NextResponse.json({ error: "Missing post ID(s)" }, { status: 400 });
+    }
+
+    // Ensure the post(s) belong to the logged-in user
+    const posts = await query("SELECT id FROM public.posts WHERE id = ANY($1) AND user_id = $2", [targetIds, userId]);
     if (posts.length === 0) {
       return NextResponse.json({ error: "Post not found or unauthorized" }, { status: 404 });
     }
 
-    // 1. Find all media associated with this post
+    const authorizedIds = posts.map(p => p.id);
+
+    // 1. Find all media associated with these posts
     const mediaRows = await query(
       `SELECT m.id, m.file_key, m.type FROM public.media m
        JOIN public.post_media pm ON pm.media_id = m.id
-       WHERE pm.post_id = $1`,
-      [id]
+       WHERE pm.post_id = ANY($1)`,
+      [authorizedIds]
     );
 
     const mediaIds = mediaRows.map(r => r.id);
@@ -240,13 +254,13 @@ export async function DELETE(request: Request) {
       await query("DELETE FROM public.media WHERE id = ANY($1)", [mediaIds]);
     }
 
-    // 4. Delete post (cascade will handle anything remaining)
+    // 4. Delete posts (cascade will handle anything remaining)
     await query(
-      "DELETE FROM public.posts WHERE id = $1 AND user_id = $2",
-      [id, userId]
+      "DELETE FROM public.posts WHERE id = ANY($1) AND user_id = $2",
+      [authorizedIds, userId]
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, deleted: authorizedIds.length });
   } catch (err: unknown) {
     console.error("DELETE /api/posts error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

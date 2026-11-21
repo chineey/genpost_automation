@@ -8,15 +8,15 @@ import type { Currency } from "@/lib/geo";
 import { AuthShell, FormError } from "@/components/AuthShell";
 
 const PLAN_LABELS_USD: Record<string, string> = {
-  starter: "Starter ($14/mo)",
-  growth: "Growth ($35/mo)",
-  agency: "Agency ($89/mo)",
+  starter: "Starter ($14)",
+  growth: "Growth ($35)",
+  agency: "Agency ($89)",
 };
 
 const PLAN_LABELS_NGN: Record<string, string> = {
-  starter: "Starter (₦5,500/mo)",
-  growth: "Growth (₦11,000/mo)",
-  agency: "Agency (₦27,500/mo)",
+  starter: "Starter (₦5,500)",
+  growth: "Growth (₦11,000)",
+  agency: "Agency (₦27,500)",
 };
 
 function SignupForm() {

@@ -6,7 +6,6 @@ import { Brain, Loader2, Plus, X, CheckCircle2, TriangleAlert } from "lucide-rea
 import { SUGGESTED_TOPICS, POST_TYPE_LABELS, POST_TYPE_DESCRIPTIONS, PostType } from "@/lib/gemini";
 
 const ALL_POST_TYPES = Object.keys(POST_TYPE_LABELS) as PostType[];
-const COUNT_OPTIONS = [5, 10, 15, 20, 30, 50];
 
 function Step({ n, title, hint, children }: { n: number; title: React.ReactNode; hint?: string; children: React.ReactNode }) {
   return (
@@ -209,11 +208,8 @@ export default function NewPostPage() {
         </Step>
 
         <Step n={3} title={<>How many? <span className="ml-auto font-display text-3xl text-primary">{count}</span></>}>
-          <div className="flex flex-wrap gap-2">
-            {COUNT_OPTIONS.map((n) => (
-              <button key={n} onClick={() => setCount(n)} className={`chip min-w-12 justify-center ${count === n ? "chip-on" : ""}`}>{n}</button>
-            ))}
-          </div>
+          <input type="range" min={5} max={50} value={count} onChange={(e) => setCount(+e.target.value)} className="w-full accent-primary" />
+          <div className="flex justify-between text-xs text-muted-foreground"><span>5</span><span>50</span></div>
         </Step>
 
         <Step n={4} title={<>Extra context <span className="text-sm font-normal text-muted-foreground">optional</span></>} hint="Describe your brand voice, target audience, or specific angles to include.">
