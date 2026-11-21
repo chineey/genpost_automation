@@ -1,4 +1,5 @@
 .agents/
 .env
 .env.local
-node_modules/
+node_modules/
+new_ui/
