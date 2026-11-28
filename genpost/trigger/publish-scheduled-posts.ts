@@ -29,7 +29,7 @@ async function hasQuota(userId: string): Promise<boolean> {
   return user.posts_used_this_cycle < user.monthly_post_quota;
 }
 
-// ─── Helper: upload media to X API using chunked upload ───────────────────
+// ─── Helper: upload media to X API v2 using chunked upload ────────────────
 async function uploadMediaToX(url: string, type: string, sizeBytes: number, accessToken: string): Promise<string> {
   console.log(`[PublishTask] Downloading media from ${url} (${sizeBytes} bytes)...`);
   const mediaResponse = await fetch(url);
@@ -39,32 +39,37 @@ async function uploadMediaToX(url: string, type: string, sizeBytes: number, acce
   const arrayBuffer = await mediaResponse.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
 
-  const mediaType = type === "video" ? "video/mp4" : "image/jpeg";
-  const mediaCategory = type === "video" ? "tweet_video" : "tweet_image";
+  const detectedType = mediaResponse.headers.get("content-type")?.split(";")[0]?.trim();
+  const mediaType = detectedType || (type === "video" ? "video/mp4" : "image/jpeg");
+  const mediaCategory = type === "video" ? "tweet_video" : mediaType === "image/gif" ? "tweet_gif" : "tweet_image";
 
-  console.log(`[PublishTask] Initializing chunked upload to X (category: ${mediaCategory})...`);
-  
-  // 1. INIT
-  const initParams = new URLSearchParams({
-    command: "INIT",
-    total_bytes: buffer.length.toString(),
-    media_type: mediaType,
-    media_category: mediaCategory,
-  });
+  console.log(`[PublishTask] Initializing X v2 chunked upload (type: ${mediaType}, category: ${mediaCategory})...`);
 
-  const initRes = await fetch(`https://upload.twitter.com/1.1/media/upload.json?${initParams.toString()}`, {
+  // 1. INITIALIZE
+  const initRes = await fetch("https://api.x.com/2/media/upload/initialize", {
     method: "POST",
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      total_bytes: buffer.length,
+      media_type: mediaType,
+      media_category: mediaCategory,
+    }),
   });
 
   if (!initRes.ok) {
     const errText = await initRes.text();
-    throw new Error(`X Media INIT failed: ${errText}`);
+    throw new Error(`X Media INIT failed (${initRes.status}): ${errText}`);
   }
 
   const initData = await initRes.json();
-  const mediaIdStr = initData.media_id_string;
-  console.log(`[PublishTask] INIT success, media_id_string: ${mediaIdStr}`);
+  const mediaIdStr: string | undefined = initData?.data?.id ?? initData?.media_id_string ?? initData?.id;
+  if (!mediaIdStr) {
+    throw new Error(`X Media INIT returned no media id: ${JSON.stringify(initData)}`);
+  }
+  console.log(`[PublishTask] INIT success, media_id: ${mediaIdStr}`);
 
   // 2. APPEND (split into 1MB chunks)
   const chunkSize = 1 * 1024 * 1024; // 1MB chunks
@@ -72,12 +77,10 @@ async function uploadMediaToX(url: string, type: string, sizeBytes: number, acce
   for (let offset = 0; offset < buffer.length; offset += chunkSize) {
     const chunk = buffer.subarray(offset, Math.min(offset + chunkSize, buffer.length));
     const formData = new FormData();
-    formData.append("command", "APPEND");
-    formData.append("media_id", mediaIdStr);
     formData.append("segment_index", segmentIndex.toString());
-    formData.append("media", new Blob([chunk]));
+    formData.append("media", new Blob([chunk], { type: mediaType }));
 
-    const appendRes = await fetch("https://upload.twitter.com/1.1/media/upload.json", {
+    const appendRes = await fetch(`https://api.x.com/2/media/upload/${mediaIdStr}/append`, {
       method: "POST",
       headers: { Authorization: `Bearer ${accessToken}` },
       body: formData,
@@ -85,7 +88,7 @@ async function uploadMediaToX(url: string, type: string, sizeBytes: number, acce
 
     if (!appendRes.ok) {
       const errText = await appendRes.text();
-      throw new Error(`X Media APPEND chunk ${segmentIndex} failed: ${errText}`);
+      throw new Error(`X Media APPEND chunk ${segmentIndex} failed (${appendRes.status}): ${errText}`);
     }
 
     console.log(`[PublishTask] APPEND chunk ${segmentIndex} uploaded`);
@@ -93,28 +96,24 @@ async function uploadMediaToX(url: string, type: string, sizeBytes: number, acce
   }
 
   // 3. FINALIZE
-  const finalizeParams = new URLSearchParams({
-    command: "FINALIZE",
-    media_id: mediaIdStr,
-  });
-
-  const finalizeRes = await fetch(`https://upload.twitter.com/1.1/media/upload.json?${finalizeParams.toString()}`, {
+  const finalizeRes = await fetch(`https://api.x.com/2/media/upload/${mediaIdStr}/finalize`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
   });
 
   if (!finalizeRes.ok) {
     const errText = await finalizeRes.text();
-    throw new Error(`X Media FINALIZE failed: ${errText}`);
+    throw new Error(`X Media FINALIZE failed (${finalizeRes.status}): ${errText}`);
   }
 
   const finalizeData = await finalizeRes.json();
   console.log(`[PublishTask] FINALIZE success`);
 
   // 4. STATUS check (polls processing status if it has processing_info)
-  if (finalizeData.processing_info) {
-    let state = finalizeData.processing_info.state;
-    let checkAfterSecs = finalizeData.processing_info.check_after_secs || 5;
+  let processingInfo = finalizeData?.data?.processing_info ?? finalizeData?.processing_info;
+  if (processingInfo) {
+    let state = processingInfo.state;
+    let checkAfterSecs = processingInfo.check_after_secs || 5;
 
     while (state === "pending" || state === "in_progress") {
       console.log(`[PublishTask] Media processing state is '${state}', waiting ${checkAfterSecs}s...`);
@@ -125,22 +124,23 @@ async function uploadMediaToX(url: string, type: string, sizeBytes: number, acce
         media_id: mediaIdStr,
       });
 
-      const statusRes = await fetch(`https://upload.twitter.com/1.1/media/upload.json?${statusParams.toString()}`, {
+      const statusRes = await fetch(`https://api.x.com/2/media/upload?${statusParams.toString()}`, {
         method: "GET",
         headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (!statusRes.ok) {
         const errText = await statusRes.text();
-        throw new Error(`X Media STATUS check failed: ${errText}`);
+        throw new Error(`X Media STATUS check failed (${statusRes.status}): ${errText}`);
       }
 
       const statusData = await statusRes.json();
-      state = statusData.processing_info?.state;
-      checkAfterSecs = statusData.processing_info?.check_after_secs || 5;
+      processingInfo = statusData?.data?.processing_info ?? statusData?.processing_info;
+      state = processingInfo?.state;
+      checkAfterSecs = processingInfo?.check_after_secs || 5;
 
-      if (statusData.processing_info?.error) {
-        throw new Error(`X Media processing error: ${statusData.processing_info.error.message}`);
+      if (processingInfo?.error) {
+        throw new Error(`X Media processing error: ${processingInfo.error.message}`);
       }
     }
     console.log(`[PublishTask] Media processing completed with state: ${state}`);
